@@ -130,7 +130,7 @@ results containing schemas need the same deliberate handler-side serialization.
 
 Endpoint methods and request shapes were checked against the official
 [dataiku-api-client source distribution](https://pypi.org/project/dataiku-api-client/)
-and [DSS 14 public API documentation](https://doc.dataiku.com/dss/14/publicapi/index.html).
+and [DSS public API documentation](https://doc.dataiku.com/dss/latest/publicapi/index.html).
 
 Read-only verification on a pilot project returned 48 Flow nodes, 51 edges, four zones,
 bounded dataset rows, the existing Python recipe payload, five native scenario
