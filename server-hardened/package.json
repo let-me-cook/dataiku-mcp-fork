@@ -11,6 +11,7 @@
     "dist/**/*",
     "src/**/*",
     "README.md",
+    "CAPABILITIES.md",
     "AGENTS-API.md",
     "OPERATIONS-API.md",
     "INTAKE-API.md",

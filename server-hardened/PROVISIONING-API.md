@@ -125,5 +125,4 @@ for conceptual references; the local pinned source determines the 14.7.1 contrac
 Controlled SQL migrations remain a separate future capability. This upgrade does
 not add arbitrary SQL execution or migration/transaction handling.
 
-Run `make build` after source changes and restart the MCP client. This upgrade
-exposes **97 unique tools** in a fresh connection.
+Run `make build` after source changes and restart the MCP client.

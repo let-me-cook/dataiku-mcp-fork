@@ -1,16 +1,35 @@
 ---
 name: dataiku-operations
-description: Use Dataiku DSS MCP tools to explore projects, inspect flows and datasets, develop or run recipes, manage scenarios, and diagnose jobs. Trigger for Dataiku, DSS, projects, recipes, datasets, scenarios, jobs, flows, or Dataiku automation.
+description: Use Dataiku DSS MCP tools to explore projects, inspect flows and datasets, build or change recipes, manage scenarios and agents, and diagnose failed jobs. Trigger for Dataiku, DSS, projects, recipes, datasets, scenarios, jobs, flows, or Dataiku automation.
 ---
 
-# Dataiku DSS Operations
+# Dataiku DSS operations
 
-Use the `dataiku_factory` MCP server. Before the first operation, confirm it is available. If unavailable, explain that `uv`, Python 3.11+, `DSS_HOST`, and `DSS_API_KEY` are required. Never print or repeat `DSS_API_KEY`. Use `DSS_INSECURE_TLS=true` only for a trusted self-signed endpoint.
+Use the `dataiku_hardened` MCP server. If its tools are unavailable, explain that it needs a build (`make setup`), Node.js 22+, `DSS_HOST` and `DSS_API_KEY`. Never print or repeat `DSS_API_KEY`.
 
-Start read-only unless the user clearly requests a mutation. Discover the project and object first; inspect flow, configuration, schema, or recent runs before changes. Preserve identifiers exactly. Read recipe code before updating it and validate changed Python or SQL before running when possible. Inspect dataset dependencies before builds or schema-changing operations. For failures, inspect recent runs, logs, steps, and job details before diagnosing.
+## Rules for every task
 
-Ask for confirmation immediately before destructive or broad operations unless the current request already names the exact action and targets. This includes deleting objects, clearing data, cancelling multiple jobs, batch updates, duplicating projects with data, and changing production schedules. Redact secret-like project variables and connection details.
+1. Call `get_usage_rules` before designing or changing a Flow, and follow it.
+2. Start read-only unless the user clearly asks for a change. Find real project keys and object IDs with tools; never guess them.
+3. Read before writing. Keep the `revision` from the read and pass it as `expected_hash` or `expected_version` on the write.
+4. Preview with `dry_run` where a tool supports it, then send the same change.
+5. A successful response is not proof. Read the changed object back and compare it with the request.
+6. Ask for confirmation just before destructive or broad actions, unless the current request already names the exact action and targets.
+7. Report partial state from errors, and read the current state before retrying. Never copy `[REDACTED]` values into a write.
 
-After mutations, report the project, affected objects, operation, and returned status.
+If a tool says a guard refused the call, tell the user which setting controls it. Do not work around it with another tool.
 
-The related TypeScript server at `steven0lisa/mcp-dataiku` offers additional list/info helpers and can run with `npx -y @zhangzichao2008/mcp-dataiku`. Do not activate both implementations by default because overlapping tool names cause ambiguity. Switch only on explicit request or if the Python server lacks a required operation.
+## Choose a guide
+
+| Task | Read |
+| --- | --- |
+| Datasets, recipes, library code, Flow zones | [references/flow-building.md](references/flow-building.md) |
+| Builds, waiting on jobs, failed jobs | [references/jobs.md](references/jobs.md) |
+| Scenarios and triggers | [references/scenarios.md](references/scenarios.md) |
+| Agents, agent tools, agent reviews | [references/agents.md](references/agents.md) |
+| Visual ML and saved models | [references/machine-learning.md](references/machine-learning.md) |
+| Data quality and profiling | [references/data-quality.md](references/data-quality.md) |
+| Projects, folders, users, plugins, environments | [references/administration.md](references/administration.md) |
+| Cobuild, only when enabled and requested | [references/cobuild.md](references/cobuild.md) |
+
+After a change, report the project, the affected objects, the operation and the result, including anything you could not confirm.

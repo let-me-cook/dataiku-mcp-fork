@@ -5,9 +5,8 @@ without access to the frontend/backend source. Upload registration and metadata
 row tools are **adapters for an external service**, not a replacement backend.
 They do not perform a file upload followed by an unrelated full-table rewrite.
 
-Run `make build` and restart the MCP client to load the new tools. The server
-exposes 94 unique tools after this upgrade. Existing running processes retain
-their loaded code until restarted.
+Run `make build` and restart the MCP client to load the new tools. Existing
+running processes retain their loaded code until restarted.
 
 ## Available Dataiku operations
 
@@ -248,8 +247,8 @@ replayed IDs, checksum rejection, partial states, capability gating, version
 conflicts, credential separation/redaction, unsafe input rejection, and no retries.
 They do not validate the unavailable application's transaction implementation.
 
-All 55 tests, typechecking, build, and the production dependency audit pass. A fresh
-MCP stdio connection exposes 94 unique tools. Read-only live checks in a pilot project
+The tests, typechecking, build, and the production dependency audit passed. Read-only
+live checks in a pilot project
 confirmed library-tree lookup, library-create and zone-update dry runs, PostgreSQL
 catalog streaming with bounded table discovery, and unknown extraction counts for
 a DONE job without a per-file manifest. Exact configured and

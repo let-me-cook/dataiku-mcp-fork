@@ -2,6 +2,8 @@
 
 This public repository contains the audited Dataiku DSS MCP integration used with Codex. It includes a hardened TypeScript server, the Codex plugin metadata, and the Dataiku operations skill.
 
+The server exposes **127 tools** by default and **130 tools** with Cobuild enabled. See the [capability list](server-hardened/CAPABILITIES.md).
+
 ## Scope
 
 - Uses the Dataiku DSS REST API over HTTPS by default, with explicit HTTP opt-in.
@@ -41,6 +43,25 @@ For an HTTP-only instance on a trusted network, use its `http://` URL and add `D
 
 For an MCP client, use `make` as the command with arguments `--no-print-directory`, `-s`, `-C`, `/absolute/path/to/mcp-dataiku-audited`, `run`. Run `make setup` before connecting the client. The existing `.mcp.json` launches Node directly and still expects credentials in the host environment.
 
+## Safety switches
+
+Set these in `.env` or the MCP client environment. Only the exact value `true` turns a switch on.
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `DSS_INSTANCE_TYPE` | `design` | `automation` refuses every tool that edits a project, while reads and runs of existing assets stay available. Any other value stops the server at startup. |
+| `DSS_ALLOW_DESTRUCTIVE` | off | Allows `clear_dataset`, the delete tools, `batch_update_objects`, `duplicate_project_structure` and approving a Cobuild deletion. |
+| `DSS_ENABLE_COBUILD` | off | Adds the optional Cobuild tools on a design instance. Direct write tools stay the normal path, and each edit by Cobuild still needs `allow_edit_project`. |
+
+To use more than one DSS instance, add one MCP server entry per instance. The server never stores profiles or switches instances itself.
+
+## Client setup
+
+- **Codex:** the plugin metadata is in `.codex-plugin/`. Run `make setup` first.
+- **Claude Code:** run `make setup`, then start with `claude --plugin-dir /absolute/path/to/mcp-dataiku-audited` and set the variables above in that environment. The manifest is in `.claude-plugin/`.
+
+Do not enable this server and Dataiku Headless in the same client, because they share tool names.
+
 ## Development
 
 ```sh
@@ -65,13 +86,13 @@ The canonical rules live in `server-hardened/src/usage-rules.ts`. After changing
 
 ## Agent management tools (DSS 14.7.1)
 
-The server includes 21 tools for creating and managing simple visual, structured visual, Python code, and plugin agents, plus their managed tools, including a builder and validator for structured visual agents. It supports version-specific configuration, visual-agent tool attachment, agent/tool invocation, and agent wakeup/shutdown.
+The server includes tools for creating and managing simple visual, structured visual, Python code, and plugin agents, plus their managed tools, including a builder and validator for structured visual agents. It supports version-specific configuration, visual-agent tool attachment, agent/tool invocation, and agent wakeup/shutdown.
 
 `list_agents` and `get_agent` return compact summaries by default; pass `detail: "full"` for complete settings. See the [agent usage guide](server-hardened/AGENTS-API.md) for the tool catalog, examples, prerequisites, and validation limits. After upgrading, run `make build` and restart your MCP connection to discover the new tools.
 
 ## Pilot operations improvements
 
-The server now exposes 97 tools. Flow graphs, bounded dataset samples, recipe code,
+Flow graphs, bounded dataset samples, recipe code,
 ZIP exports, and typed update patches use the DSS 14.7.1 contracts. Added operations
 cover folders, zones, Python library files, scoped variables, environments, jobs,
 knowledge banks, startup diagnostics, and native scenario Build/Train steps.
@@ -102,7 +123,7 @@ handling.
 
 ## Upstream
 
-The plugin documentation references [hhobin/dataiku_factory](https://github.com/hhobin/dataiku_factory). This repository is an independently audited/hardened wrapper and is not an official Dataiku product.
+This server is a hardened fork of [steven0lisa/mcp-dataiku](https://github.com/steven0lisa/mcp-dataiku) v1.0.7; see [UPSTREAM.md](server-hardened/UPSTREAM.md). Several features were reimplemented after reviewing [dataiku/dataiku-headless](https://github.com/dataiku/dataiku-headless) (Apache-2.0); no Headless code is included. This is not an official Dataiku product.
 
 ## License
 

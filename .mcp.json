@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "dataiku_factory": {
+    "dataiku_hardened": {
       "type": "stdio",
       "command": "node",
       "args": ["server-hardened/dist/mcp-server.js"],
-      "env_vars": ["DSS_HOST", "DSS_API_KEY", "DSS_INSECURE_TLS", "DSS_ALLOW_HTTP"]
+      "env_vars": ["DSS_HOST", "DSS_API_KEY", "DSS_ALLOW_HTTP", "DSS_INSTANCE_TYPE", "DSS_ALLOW_DESTRUCTIVE", "DSS_ENABLE_COBUILD"]
     }
   }
 }

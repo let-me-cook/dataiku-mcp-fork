@@ -1,0 +1,17 @@
+{
+  "name": "dataiku-hardened",
+  "version": "0.1.0",
+  "description": "Operate and troubleshoot Dataiku DSS through a hardened MCP server with guarded direct writes.",
+  "author": { "name": "PT All Data International" },
+  "homepage": "https://github.com/hef-max/mcp-dataiku-audited",
+  "repository": "https://github.com/hef-max/mcp-dataiku-audited",
+  "license": "MIT",
+  "keywords": ["dataiku", "dss", "mcp"],
+  "skills": "./skills/",
+  "mcpServers": {
+    "dataiku_hardened": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/server-hardened/dist/mcp-server.js"]
+    }
+  }
+}

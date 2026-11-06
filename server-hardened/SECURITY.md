@@ -1,6 +1,6 @@
 # Security baseline
 
-This fork focuses on source, artifact, and dependency hardening. Tool-level authorization and enterprise deployment are intentionally out of scope for this phase.
+This fork focuses on source, artifact, and dependency hardening. Enterprise deployment is out of scope. A small tool policy (below) adds coarse guards, but it does not replace DSS permissions: the API key's rights still apply.
 
 ## Controls applied
 
@@ -19,14 +19,35 @@ This fork focuses on source, artifact, and dependency hardening. Tool-level auth
 - Uses only `https://registry.npmjs.org/`.
 - New agent MCP tools validate input schemas before dispatch, encode URL path segments, and preserve unspecified settings during updates. Invocation tools do not automatically approve DSS tool validation requests.
 
+## Tool policy
+
+Every tool call passes through one gate in `tool-registry.ts` before any request is sent, and every tool's arguments are validated against its schema. See the [capability list](CAPABILITIES.md).
+
+- `DSS_INSTANCE_TYPE=automation` refuses all non-read tools except an explicit list of run and abort tools, so a new write tool is refused until it is listed. An unknown value stops startup. The value is declared by the operator, not detected from DSS.
+- Destructive tools and approving a Cobuild deletion need `DSS_ALLOW_DESTRUCTIVE=true`.
+- Cobuild tools are hidden and refused unless `DSS_ENABLE_COBUILD=true` on a design instance. Cobuild is another agent acting inside DSS, so its edits have no `dry_run` or revision check here; read changed objects back.
+- User, group and plugin tools are read-only and return allow-listed fields. Emails and settings are not returned.
+
+## Python execution on DSS
+
+There is no generic remote-code execution tool, but this server can still cause arbitrary Python to run on DSS: `update_recipe` with `run_recipe` or `start_job`, a `PYTHON_AGENT` with `run_agent`, an inline Python agent tool with `run_agent_tool`, and project library files used by those. This is intended for normal recipe work and is not gated. Treat an agent connected to this server as able to run code with the DSS permissions of its key and code environments.
+
+## Older upstream tools
+
+The upstream tools now have schemas with bounds, annotations and URL segment encoding. Several call endpoints that were not found in the `dataiku-api-client` 14.7.1 source and may fail on a real instance: `run_recipe`, `build_dataset`, `clear_dataset`, `validate_recipe_syntax`, `test_recipe_dry_run`, `add_scenario_trigger`, `remove_scenario_trigger`, `get_scenario_logs`, `get_scenario_run_history`, `clone_scenario`, `search_project_objects`, `batch_update_objects`, `duplicate_project_structure`, and the project-scoped forms of `get_code_environments` and `get_connections`. Their descriptions say so.
+
+## Headless-derived tools verification
+
+Request shapes for the job, profile, library search, data quality, ML, agent review, project, folder, admin and Cobuild tools were checked against the `dataiku-api-client` 14.7.1 source and tested offline with mocked HTTP. They have not been run against a live instance. No dependencies were added.
+
 ## Agent extension verification
 
 Run `make test` from the repository root for offline 14.7.1 API contract tests and MCP stdio discovery. These tests use dummy credentials and mocked HTTP responses; they do not establish live instance compatibility. See [AGENTS-API.md](AGENTS-API.md) for supported operations and exact upstream API provenance. No runtime dependencies were added for this extension.
 
 ## Pilot operations verification
 
-Typecheck, build, all 33 tests, and the production dependency audit pass. A fresh
-MCP stdio connection exposes 87 unique tools and reads a live pilot project graph and
+Typecheck, build, the tests at that point, and the production dependency audit passed. A fresh
+MCP stdio connection read a live pilot project graph and
 bounded dataset sample. See [Operations API](OPERATIONS-API.md) for all live checks,
 write-test limits, artifact retention, fixed import diagnostics, and best-effort
 concurrency. There is no generic remote-code execution tool in the new operations.
@@ -36,7 +57,7 @@ concurrency. There is no generic remote-code execution tool in the new operation
 - TypeScript typecheck: passed.
 - Production build: passed.
 - MCP initialize handshake: passed, protocol 2025-11-25.
-- Tool discovery: passed, 44 tools.
+- Tool discovery: passed.
 - Read-only Dataiku `list_projects`: passed.
 - Production npm audit: 0 known vulnerabilities.
 - Registry signatures: 97 of 97 packages verified.
@@ -57,7 +78,7 @@ Do not use `npx` or install dependencies at runtime. Build from the committed lo
 
 ## Intake upgrade
 
-The fresh MCP connection exposes 94 unique tools; all 55 tests pass. Optional
+Optional
 intake-service credentials are separate from DSS credentials, with an operator-set
 URL and project allowlist. Upload registration and keyed metadata writes require
 a compatible backend and do not fall back to direct file/table mutations.

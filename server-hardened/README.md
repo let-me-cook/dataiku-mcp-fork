@@ -4,7 +4,7 @@ This directory is an auditable local fork. Read [SECURITY.md](SECURITY.md) for t
 
 For this hardened build, follow the repository [quick start](../README.md#quick-start): run `make setup` from the repository root, fill in the root `.env`, then run `make run`. It requires Node.js 22+ and defaults to trusted HTTPS. HTTP-only instances require explicit `DSS_ALLOW_HTTP=true`; `DSS_INSECURE_TLS=true` is rejected.
 
-This build also adds 19 [agent-management tools for DSS 14.7.1](AGENTS-API.md), beyond the upstream catalog below. Run `make test` from the repository root for offline API contract tests and MCP discovery verification.
+This build also adds [agent-management tools for DSS 14.7.1](AGENTS-API.md), beyond the upstream catalog below. See the [capability list](CAPABILITIES.md) for every tool. Run `make test` from the repository root for offline API contract tests and MCP discovery verification.
 
 > The remainder of this document is the upstream README and may describe the original npm package rather than this hardened build.
 # Dataiku DSS MCP Server

@@ -1,9 +1,7 @@
-# Dataiku Codex plugin
+# Dataiku plugin
 
-This plugin connects Codex to Dataiku DSS using [hhobin/dataiku_factory](https://github.com/hhobin/dataiku_factory).
+This plugin connects Codex or Claude Code to Dataiku DSS through the hardened TypeScript MCP server in `server-hardened/`.
 
-Requirements: Dataiku DSS API access, Python 3.11+, `uv`, and the `DSS_HOST` and `DSS_API_KEY` environment variables available to Codex. `DSS_INSECURE_TLS=true` is optional and should be used only for a trusted self-signed certificate. Restart Codex after setting variables. On first use, `uvx` downloads and caches the upstream server.
+Requirements: Node.js 22+, Make, Dataiku DSS API access, and `DSS_HOST` and `DSS_API_KEY` available to the client. Run `make setup` first, because the plugin starts the built server from `server-hardened/dist/`. HTTPS is required by default, and insecure TLS is rejected.
 
-Dataiku Factory is active (Python, 34 documented tools). [steven0lisa/mcp-dataiku](https://github.com/steven0lisa/mcp-dataiku) documents 46 tools and an `npx` entry point, but remains an explicit fallback to avoid duplicate tool names.
-
-The plugin stores no DSS credentials; it passes only the named variables inherited from Codex.
+The plugin stores no DSS credentials; it uses only the named variables inherited from the client. See `README.md` for the optional safety switches.

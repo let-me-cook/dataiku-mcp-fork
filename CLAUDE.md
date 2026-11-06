@@ -36,11 +36,12 @@ Tests import from `dist/`, so `make test` (which builds first) is the reliable w
 
 ## Code map (`server-hardened/src`)
 
-- `mcp-server.ts`: MCP `Server` setup, tool list and the `CallToolRequestSchema` dispatcher. The older upstream tools
-  (recipes, datasets, scenarios, projects) are inline schemas plus a `switch` that calls `DataikuClient`.
-- `operations-tools.ts` + `operations-client.ts`: the newer tools, declared with `def(name, description, properties,
-  required, run, readOnly)` (read-only/destructive annotations), validated with Ajv before dispatch. Prefer this style
-  for new tools. A name defined here wins over an inline tool with the same name (inline duplicates are filtered out).
+- `mcp-server.ts`: thin MCP `Server` setup. `tool-registry.ts` holds the catalog and `callTool`, the single path every
+  call takes. `tool-policy.ts` is the gate in front of it (`DSS_INSTANCE_TYPE`, `DSS_ALLOW_DESTRUCTIVE`,
+  `DSS_ENABLE_COBUILD`). New write tools are refused on automation nodes until added to `automationWrites`.
+- `tool-def.ts`: `def(name, description, properties, required, run, readOnly)` and schema helpers. Use it for new tools.
+- `operations-tools.ts` + `operations-client.ts`, and `coverage-tools.ts`: the newer tools, validated with Ajv before
+  dispatch. `legacy-tools.ts`: upstream tools calling `DataikuClient`; several use endpoints absent from the SDK.
 - `agent-tools.ts`, `agent-client.ts`, `agent-summary.ts`, `structured-agent.ts`: DSS agent and agent-tool management
   (see `AGENTS-API.md`).
 - `provisioning.ts` (datasets, managed folders, schema autodetect; `PROVISIONING-API.md`), `intake-service.ts` and
@@ -60,15 +61,14 @@ Tests import from `dist/`, so `make test` (which builds first) is the reliable w
   (URL, method, body) and that no unexpected request is made.
 - Write tools that update settings preserve unspecified fields and support `dry_run` / expected version or hash
   where the DSS API allows it; report partial state on failure instead of retrying blindly.
-- When adding tools, update the tool count and docs (`README.md`, the matching `*-API.md`, `SECURITY.md`
-  verification notes) in the same change.
+- When adding tools, update docs in the same change (`README.md`, the matching `*-API.md`, `SECURITY.md` verification
+  notes). `test/docs.test.mjs` enforces tool counts; regenerate the table with
+  `UPDATE_CAPABILITIES=1 make test`.
 
 ## Known doc drift (fix when touching these files)
 
-- `skills/dataiku-operations/SKILL.md` still describes the upstream Python/`uv` server and `DSS_INSECURE_TLS`; this
-  build is the TypeScript server and rejects insecure TLS.
-- Tool counts differ between `README.md`, `server-hardened/README.md` and `SECURITY.md`. The lower part of
-  `server-hardened/README.md` and `TODO.md` (Chinese) are upstream text, kept for provenance (`UPSTREAM.md`).
+- The lower part of `server-hardened/README.md` and `TODO.md` (Chinese) are upstream text, kept for provenance
+  (`UPSTREAM.md`).
 - `.mcp.json` starts `node server-hardened/dist/mcp-server.js` and expects `DSS_HOST`/`DSS_API_KEY` in the client's
   environment; the README's `make -C <repo> run` form reads `.env` instead.
 
