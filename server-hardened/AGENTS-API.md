@@ -1,4 +1,4 @@
-# Agent management for Dataiku DSS 14.7.1
+# Agent management for Dataiku DSS
 
 Run `make setup`, configure the root `.env`, then connect your MCP client using the [root quick start](../README.md#quick-start). After a source update, run `make build` and restart the MCP connection.
 
@@ -166,6 +166,6 @@ Review the returned settings and warnings, then repeat with `"dry_run":false`. F
 
 `make test` runs offline HTTP contract tests and an actual MCP stdio handshake through `make run`, with dummy credentials and no requests to Dataiku. It covers creation for all four agent types, settings preservation, tool wiring, invocation payloads, authentication, validation, errors, timeouts, and endpoint encoding.
 
-The endpoint methods and payloads were checked against Dataiku's official [dataiku-api-client 14.7.1 source distribution](https://pypi.org/project/dataiku-api-client/14.7.1/), specifically `dss/project.py`, `dss/agent.py`, `dss/agent_tool.py`, `dss/llm.py`, and `dssclient.py`. The source archive SHA-256 is `195f392dbfc61db3cb66093f5e7349b9e7a9d51de7c34dee7d36e208ad054339`. The Python package is a development reference and is not installed or required at runtime.
+The endpoint methods and payloads were checked against Dataiku's official [dataiku-api-client source distribution](https://pypi.org/project/dataiku-api-client/), specifically `dss/project.py`, `dss/agent.py`, `dss/agent_tool.py`, `dss/llm.py`, and `dssclient.py`. The source archive SHA-256 is `195f392dbfc61db3cb66093f5e7349b9e7a9d51de7c34dee7d36e208ad054339`. The Python package is a development reference and is not installed or required at runtime.
 
 These tests verify the client contract, not a live DSS deployment. See also Dataiku's [DSS 14 Code Agents documentation](https://doc.dataiku.com/dss/14/agents/code-agents.html).

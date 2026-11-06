@@ -7,7 +7,7 @@ This fork focuses on source, artifact, and dependency hardening. Enterprise depl
 - Pinned `@modelcontextprotocol/sdk` to `1.32.2`.
 - Removed Axios and dotenv.
 - Uses the Node.js native `fetch` implementation.
-- Sends DSS API keys using HTTP Basic authentication (key as username, empty password), matching the official DSS 14.7.1 client.
+- Sends DSS API keys using HTTP Basic authentication (key as username, empty password), matching the official DSS client.
 - Defaults to HTTPS for `DSS_HOST`. Explicit `DSS_ALLOW_HTTP=true` permits HTTP on a trusted network; the API key and data then travel without transport encryption. This does not bypass HTTPS certificate validation or the redirect restriction.
 - Rejects insecure TLS mode, redirects, credentials in URLs, query strings, and fragments.
 - Applies a 30 second request timeout.
@@ -34,13 +34,13 @@ There is no generic remote-code execution tool, but this server can still cause 
 
 ## Older upstream tools
 
-The upstream tools now have schemas with bounds, annotations and URL segment encoding. Tools whose endpoints were absent from the `dataiku-api-client` 14.7.1 source were removed or rewritten to the SDK's request shape. Use `start_job` to build. These rewritten tools passed the live write check described below.
+The upstream tools now have schemas with bounds, annotations and URL segment encoding. Tools whose endpoints were absent from the `dataiku-api-client` source were removed or rewritten to the SDK's request shape. Use `start_job` to build. These rewritten tools passed the live write check described below.
 
 ## Headless-derived tools verification
 
-Request shapes for the job, profile, library search, data quality, ML, agent review, project, folder and admin tools were checked against the `dataiku-api-client` 14.7.1 source and tested offline with mocked HTTP. No dependencies were added.
+Request shapes for the job, profile, library search, data quality, ML, agent review, project, folder and admin tools were checked against the `dataiku-api-client` source and tested offline with mocked HTTP. No dependencies were added.
 
-A read-only live check on 2026-11-06 used sandbox and tutorial projects and a DSS 14.7.1 instance. These returned real results: `get_dataset_profile`, `search_project_library`, `list_data_quality_rules`, `get_data_quality_results`, `get_data_quality_history`, `list_ml_analyses`, `get_ml_analysis`, `list_ml_tasks`, `list_saved_models`, `list_saved_model_versions`, `get_saved_model_version_details`, `list_agent_reviews`, `get_project_folder`, `list_project_folders`, `list_users`, `list_groups`, `list_plugins`, `check_dataset_metrics`. `get_data_quality_status` returned 404 where a dataset had no results.
+A read-only live check on 2026-11-06 used sandbox and tutorial projects and a DSS instance. These returned real results: `get_dataset_profile`, `search_project_library`, `list_data_quality_rules`, `get_data_quality_results`, `get_data_quality_history`, `list_ml_analyses`, `get_ml_analysis`, `list_ml_tasks`, `list_saved_models`, `list_saved_model_versions`, `get_saved_model_version_details`, `list_agent_reviews`, `get_project_folder`, `list_project_folders`, `list_users`, `list_groups`, `list_plugins`, `check_dataset_metrics`. `get_data_quality_status` returned 404 where a dataset had no results.
 
 A live write check on 2026-11-06 used throwaway objects in a sandbox project, then deleted them and confirmed none remained. These worked on a real instance: `create_dataset`, `update_dataset`, `create_recipe`, `update_recipe`, `start_job`, `wait_for_job`, `get_job_details`, `get_job_log_tail`, `get_job_activity_log`, `abort_job`, `get_dataset_sample`, `clear_dataset`, `create_scenario`, `get_scenario_info`, `add_scenario_trigger` (dry run and all frequencies), `remove_scenario_trigger`, `run_scenario`, `get_scenario_run_history`, `list_scenarios`, `delete_scenario`, `delete_recipe` and `delete_dataset`. The check found that `create_recipe` was not saving code, which the offline tests had missed, and this is fixed.
 
@@ -48,7 +48,7 @@ Not run live: `create_project`, the agent and agent tool writes, zone and librar
 
 ## Agent extension verification
 
-Run `make test` from the repository root for offline 14.7.1 API contract tests and MCP stdio discovery. These tests use dummy credentials and mocked HTTP responses; they do not establish live instance compatibility. See [AGENTS-API.md](AGENTS-API.md) for supported operations and exact upstream API provenance. No runtime dependencies were added for this extension.
+Run `make test` from the repository root for offline API contract tests and MCP stdio discovery. These tests use dummy credentials and mocked HTTP responses; they do not establish live instance compatibility. See [AGENTS-API.md](AGENTS-API.md) for supported operations and exact upstream API provenance. No runtime dependencies were added for this extension.
 
 ## Pilot operations verification
 

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Guidance for Claude Code in this repository: a hardened MCP **stdio** server for Dataiku DSS 14.7.1, plus Codex plugin
+Guidance for Claude Code in this repository: a hardened MCP **stdio** server for Dataiku DSS, plus Codex plugin
 metadata (`.codex-plugin/`) and a Dataiku operations skill (`skills/dataiku-operations/`). The repository is public
 (MIT); treat everything committed here as published.
 

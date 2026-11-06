@@ -4,7 +4,7 @@ This directory is an auditable local fork. Read [SECURITY.md](SECURITY.md) for t
 
 For this hardened build, follow the repository [quick start](../README.md#quick-start): run `make setup` from the repository root, fill in the root `.env`, then run `make run`. It requires Node.js 22+ and defaults to trusted HTTPS. HTTP-only instances require explicit `DSS_ALLOW_HTTP=true`; `DSS_INSECURE_TLS=true` is rejected.
 
-This build also adds [agent-management tools for DSS 14.7.1](AGENTS-API.md), beyond the upstream catalog below. See the [capability list](CAPABILITIES.md) for every tool. Run `make test` from the repository root for offline API contract tests and MCP discovery verification.
+This build also adds [agent-management tools for DSS](AGENTS-API.md), beyond the upstream catalog below. See the [capability list](CAPABILITIES.md) for every tool. Run `make test` from the repository root for offline API contract tests and MCP discovery verification.
 
 > The remainder of this document is the upstream README and may describe the original npm package rather than this hardened build.
 # Dataiku DSS MCP Server
@@ -280,7 +280,7 @@ If you encounter any issues or have questions, please [open an issue](https://gi
 
 **Ready to enhance your Dataiku workflows with AI assistance!** 🚀
 
-## Pilot operations improvements (DSS 14.7.1)
+## Pilot operations improvements
 
 See [Operations API](OPERATIONS-API.md) for the corrected Flow, sample, recipe, and export tools; typed patches; folders, zones, library, variables, diagnostics, jobs, knowledge banks, and native scenario steps. This is the authoritative reference for these extended schemas and their concurrency limits.
 

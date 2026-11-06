@@ -1,4 +1,4 @@
-# Operations API — DSS 14.7.1
+# Operations API
 
 These operations address findings from a pilot project. Run `make test`
 and `make build` from the repository root, then restart the MCP client to load
@@ -129,10 +129,8 @@ results containing schemas need the same deliberate handler-side serialization.
 ## Reference and verification
 
 Endpoint methods and request shapes were checked against the official
-[dataiku-api-client 14.7.1 source distribution](https://pypi.org/project/dataiku-api-client/14.7.1/)
+[dataiku-api-client source distribution](https://pypi.org/project/dataiku-api-client/)
 and [DSS 14 public API documentation](https://doc.dataiku.com/dss/14/publicapi/index.html).
-Source archive SHA-256:
-`195f392dbfc61db3cb66093f5e7349b9e7a9d51de7c34dee7d36e208ad054339`.
 
 Read-only verification on a pilot project returned 48 Flow nodes, 51 edges, four zones,
 bounded dataset rows, the existing Python recipe payload, five native scenario

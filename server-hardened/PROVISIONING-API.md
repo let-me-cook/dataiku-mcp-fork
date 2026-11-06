@@ -1,4 +1,4 @@
-# Dataset and managed-folder provisioning (DSS 14.7.1)
+# Dataset and managed-folder provisioning
 
 This upgrade addresses a missing `projectKey`, managed-folder
 creation, external PostgreSQL definitions, and schema detection.
@@ -116,11 +116,11 @@ no existing objects were changed. Creation/save behavior is covered by mocked HT
 tests, not a live write test.
 
 Request shapes were checked directly against the official `dataiku-api-client`
-**14.7.1** source: `dss/project.py` (`create_dataset`, `create_managed_folder`) and
+source: `dss/project.py` (`create_dataset`, `create_managed_folder`) and
 `dss/dataset.py` (`test_and_detect`, `autodetect_settings`, `set_table`). See the
 [official project API](https://developer.dataiku.com/latest/api-reference/python/projects.html)
 and [dataset API](https://developer.dataiku.com/latest/api-reference/python/datasets.html)
-for conceptual references; the local pinned source determines the 14.7.1 contract.
+for conceptual references; the local pinned source determines the contract.
 
 Controlled SQL migrations remain a separate future capability. This upgrade does
 not add arbitrary SQL execution or migration/transaction handling.

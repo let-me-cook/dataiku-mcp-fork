@@ -31,7 +31,7 @@ function version(settings: Settings, versionId?: string): Settings {
   return found;
 }
 
-/** REST contracts verified against the official dataiku-api-client 14.7.1 source distribution. */
+/** REST contracts verified against the official dataiku-api-client source distribution. */
 export class AgentClient {
   constructor(private readonly http: SecureHttpClient) {}
 

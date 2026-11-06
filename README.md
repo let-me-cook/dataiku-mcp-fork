@@ -84,7 +84,7 @@ Every connection receives the rules, but client adherence is not guaranteed. `up
 
 The canonical rules live in `server-hardened/src/usage-rules.ts`. After changing them, run `make build` and reconnect your MCP client to receive the updated initialization instructions.
 
-## Agent management tools (DSS 14.7.1)
+## Agent management tools
 
 The server includes tools for creating and managing simple visual, structured visual, Python code, and plugin agents, plus their managed tools, including a builder and validator for structured visual agents. It supports version-specific configuration, visual-agent tool attachment, agent/tool invocation, and agent wakeup/shutdown.
 
@@ -93,7 +93,7 @@ The server includes tools for creating and managing simple visual, structured vi
 ## Pilot operations improvements
 
 Flow graphs, bounded dataset samples, recipe code,
-ZIP exports, and typed update patches use the DSS 14.7.1 contracts. Added operations
+ZIP exports, and typed update patches use the DSS contracts. Added operations
 cover folders, zones, Python library files, scoped variables, environments, jobs,
 knowledge banks, startup diagnostics, and native scenario Build/Train steps.
 

@@ -170,7 +170,7 @@ export class OperationsClient {
     const flow=await this.flow(a.project_key);const node=flow.nodes.find((n:any)=>n.ref===a.knowledge_bank_id);
     const producers=flow.nodes.filter((n:any)=>(node?.predecessors??[]).includes(n.id));
     const datasets=producers.flatMap((n:any)=>n.predecessors??[]);
-    return {settings,revision:revision(settings),producer_recipe_ids:producers.map((n:any)=>n.ref),source_node_ids:datasets,refresh_status:'Not exposed by the 14.7.1 knowledge-bank settings API; inspect producing jobs with get_job_details. Settings alone do not prove indexed content.'};
+    return {settings,revision:revision(settings),producer_recipe_ids:producers.map((n:any)=>n.ref),source_node_ids:datasets,refresh_status:'Not exposed by the knowledge-bank settings API; inspect producing jobs with get_job_details. Settings alone do not prove indexed content.'};
   }
   async codeEnv(a:any) {
     const d=(await this.http.get(`/admin/code-envs/PYTHON/${seg(a.env_name)}`)).data;

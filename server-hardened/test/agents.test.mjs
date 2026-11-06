@@ -68,7 +68,7 @@ test('HTTP requires explicit opt-in and retains URL and redirect restrictions', 
   }
 });
 
-test('read tools use DSS 14.7.1 endpoints, query parameters and API-key Basic authentication', async t => {
+test('read tools use DSS endpoints, query parameters and API-key Basic authentication', async t => {
   const cases = [
     ['list_agents', { project_key, detail: 'full' }, '/agents', [original]],
     ['get_agent', { ...agentArgs, detail: 'full' }, '/agents/agent1', original],

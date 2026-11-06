@@ -258,7 +258,7 @@ candidate metadata table names were not found in that connection's catalog durin
 the check; the tools report this without assuming equivalence. No live metadata
 rows, files, library contents, or Flow layouts were modified.
 
-The DSS requests follow the official `dataiku-api-client` 14.7.1
+The DSS requests follow the official `dataiku-api-client`
 `dss/projectlibrary.py` and `dss/sqlquery.py` implementations. References:
 [Dataiku library REST operations](https://doc.dataiku.com/dss/api/latest/rest/),
 [Dataiku storage variables](https://doc.dataiku.com/dss/14/connecting/relocation.html),
