@@ -1,17 +1,13 @@
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv-provider.js';
-import type {Tool,CallToolResult} from '@modelcontextprotocol/sdk/types.js';
+import type {CallToolResult} from '@modelcontextprotocol/sdk/types.js';
 import { OperationsClient,base,seg,revision } from './operations-client.js';
 import { createDataset, createFolder, autodetectSchema } from './provisioning.js';
 import { IntakeService } from './intake-service.js';
 import { inspectTable, extractionSummary, listTables } from './intake-inspection.js';
 import { errorDetails } from './http-client.js';
 import { storeArtifact,registerArtifact } from './artifacts.js';
-const str=(description:string)=>({type:'string',minLength:1,description});
-const num=(max:number,def:number)=>({type:'integer',minimum:1,maximum:max,default:def});
-const obj=(description:string)=>({type:'object',additionalProperties:true,description});
-const arr=(items:object,max=100)=>({type:'array',items,maxItems:max});
-const hash={type:'string',pattern:'^[a-f0-9]{64}$'};
-const fields=(properties:Record<string,object>,required:string[]=[])=>({type:'object',properties,required,additionalProperties:false});
+import { str, num, obj, arr, hash, fields, def, type OperationDefinition } from './tool-def.js';
+import { coverageDefinitions } from './coverage-tools.js';
 const p={project_key:str('Project key')};
 const ds={...p,dataset_name:str('Dataset name')};const rec={...p,recipe_name:str('Recipe name')};const sc={...p,scenario_id:str('Scenario ID')};
 const folder={...p,folder_id:str('Managed folder ID')};const file={...folder,path:str('Path within the managed folder')};
@@ -22,8 +18,6 @@ const io={type:'object',additionalProperties:fields({items:arr(fields({ref:str('
 const buildType={type:'string',enum:['RECURSIVE_BUILD','NON_RECURSIVE_FORCED_BUILD','RECURSIVE_FORCED_BUILD','RECURSIVE_MISSING_ONLY_BUILD'],default:'NON_RECURSIVE_FORCED_BUILD'};
 const output=fields({id:str('Flow object ID'),type:{type:'string',enum:['DATASET','MANAGED_FOLDER','SAVED_MODEL','STREAMING_ENDPOINT','KNOWLEDGE_BANK']},partition:{type:'string'}},['id','type']);
 const ref=fields({objectId:str('Flow object ID'),objectType:{type:'string',enum:['DATASET','RECIPE','MANAGED_FOLDER','SAVED_MODEL','STREAMING_ENDPOINT','MODEL_EVALUATION_STORE','RETRIEVABLE_KNOWLEDGE','LABELING_TASK']}},['objectId','objectType']);
-export type OperationDefinition={tool:Tool;run:(c:OperationsClient,a:any)=>Promise<any>};
-function def(name:string,description:string,properties:Record<string,object>,required:string[],run:OperationDefinition['run'],readOnly=true):OperationDefinition{return {tool:{name,description,inputSchema:fields(properties,required) as Tool['inputSchema'],annotations:{readOnlyHint:readOnly,destructiveHint:!readOnly,openWorldHint:true}},run};}
 const scalar={type:['string','number','boolean','null'],maxLength:8192,minimum:-Number.MAX_SAFE_INTEGER,maximum:Number.MAX_SAFE_INTEGER};
 const rowKeys={type:'object',minProperties:1,maxProperties:10,propertyNames:{pattern:'^[A-Za-z_][A-Za-z0-9_]*$',not:{enum:['__proto__','constructor','prototype']}},additionalProperties:{type:['string','integer'],minLength:1,maxLength:512,minimum:-Number.MAX_SAFE_INTEGER,maximum:Number.MAX_SAFE_INTEGER}};
 const rowValues={type:'object',minProperties:1,maxProperties:100,propertyNames:{pattern:'^[A-Za-z_][A-Za-z0-9_]*$',not:{enum:['__proto__','constructor','prototype']}},additionalProperties:scalar};
@@ -79,6 +73,7 @@ const definitions:OperationDefinition[]=[
  def('configure_knowledge_bank_filters','Configure which existing metadata columns are filterable. Existing column definitions and other settings are preserved.',{...p,knowledge_bank_id:str('Knowledge bank ID'),filterable_columns:arr(str('Existing metadata column')), ...guard},['project_key','knowledge_bank_id','filterable_columns'],(c,a)=>c.patch(`${base(a.project_key)}/knowledge-banks/${seg(a.knowledge_bank_id)}`,{},a,(current)=>{const columns=current.metadataColumnsSchema??[];if(a.filterable_columns.some((n:string)=>!columns.some((x:any)=>x.name===n)))throw new Error('Unknown metadata column');return {...current,metadataColumnsSchema:columns.map((col:any)=>({...col,filterable:a.filterable_columns.includes(col.name)}))};}),false),
  def('check_agent_tool_startup','Fetch the descriptor to check actual managed-tool initialization. Does not invoke business input or approve validation requests. Returns sanitized DSS startup errors, including missing dependencies.',{...p,tool_id:str('Managed tool ID')},['project_key','tool_id'],async(c,a)=>({descriptor:(await c.http.get(`${base(a.project_key)}/agents/tools/${seg(a.tool_id)}/descriptor`)).data,descriptor_check_passed:true,business_invocation_tested:false})),
  def('add_scenario_build_step','Append a typed native Build/Train step. Defaults to serial success/warning-only progression and no proceeding after failure. SAVED_MODEL outputs represent model builds/training.',{...sc,step_id:str('Unique step ID'),name:str('Step name'),outputs:{...arr(output),minItems:1},build_mode:buildType,...guard},['project_key','scenario_id','step_id','name','outputs'],(c,a)=>c.buildStep(a),false),
+ ...coverageDefinitions,
 ];
 const validator=new AjvJsonSchemaValidator();
 const registry=new Map(definitions.map(d=>[d.tool.name,{...d,validate:validator.getValidator(d.tool.inputSchema)}]));
