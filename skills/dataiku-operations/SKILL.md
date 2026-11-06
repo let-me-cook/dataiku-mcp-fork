@@ -30,6 +30,5 @@ If a tool says a guard refused the call, tell the user which setting controls it
 | Visual ML and saved models | [references/machine-learning.md](references/machine-learning.md) |
 | Data quality and profiling | [references/data-quality.md](references/data-quality.md) |
 | Projects, folders, users, plugins, environments | [references/administration.md](references/administration.md) |
-| Cobuild, only when enabled and requested | [references/cobuild.md](references/cobuild.md) |
 
 After a change, report the project, the affected objects, the operation and the result, including anything you could not confirm.

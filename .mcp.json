@@ -4,7 +4,7 @@
       "type": "stdio",
       "command": "node",
       "args": ["server-hardened/dist/mcp-server.js"],
-      "env_vars": ["DSS_HOST", "DSS_API_KEY", "DSS_ALLOW_HTTP", "DSS_INSTANCE_TYPE", "DSS_ALLOW_DESTRUCTIVE", "DSS_ENABLE_COBUILD"]
+      "env_vars": ["DSS_HOST", "DSS_API_KEY", "DSS_ALLOW_HTTP", "DSS_INSTANCE_TYPE", "DSS_ALLOW_DESTRUCTIVE", "DSS_INTAKE_URL", "DSS_INTAKE_TOKEN", "DSS_INTAKE_PROJECTS", "DSS_INTAKE_ALLOW_HTTP"]
     }
   }
 }

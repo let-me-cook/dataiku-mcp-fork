@@ -2,7 +2,7 @@
 
 This public repository contains the audited Dataiku DSS MCP integration used with Codex. It includes a hardened TypeScript server, the Codex plugin metadata, and the Dataiku operations skill.
 
-The server exposes **127 tools** by default and **130 tools** with Cobuild enabled. See the [capability list](server-hardened/CAPABILITIES.md).
+The server exposes **114 tools** by default and **118 tools** with an intake backend. See the [capability list](server-hardened/CAPABILITIES.md).
 
 ## Scope
 
@@ -50,8 +50,8 @@ Set these in `.env` or the MCP client environment. Only the exact value `true` t
 | Variable | Default | Effect |
 | --- | --- | --- |
 | `DSS_INSTANCE_TYPE` | `design` | `automation` refuses every tool that edits a project, while reads and runs of existing assets stay available. Any other value stops the server at startup. |
-| `DSS_ALLOW_DESTRUCTIVE` | off | Allows `clear_dataset`, the delete tools, `batch_update_objects`, `duplicate_project_structure` and approving a Cobuild deletion. |
-| `DSS_ENABLE_COBUILD` | off | Adds the optional Cobuild tools on a design instance. Direct write tools stay the normal path. `allow_edit_project` opts in to Cobuild edits, and Cobuild can propose a deletion without it, which then needs approval. |
+| `DSS_ALLOW_DESTRUCTIVE` | off | Allows `clear_dataset` and the delete tools. |
+| `DSS_INTAKE_URL` | unset | Lists the four intake tools. They need a compatible backend; see the [Intake API](server-hardened/INTAKE-API.md). |
 
 To use more than one DSS instance, add one MCP server entry per instance. The server never stores profiles or switches instances itself.
 

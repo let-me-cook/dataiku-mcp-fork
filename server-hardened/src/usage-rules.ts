@@ -22,9 +22,9 @@ const designTools = new Set([
   'create_managed_folder', 'create_external_postgresql_dataset',
   'create_flow_zone', 'update_flow_zone', 'move_flow_objects', 'share_flow_object', 'add_scenario_build_step',
   'create_recipe', 'update_recipe', 'create_dataset', 'update_dataset',
-  'create_scenario', 'update_scenario', 'clone_scenario',
+  'create_scenario', 'update_scenario',
   'create_agent', 'update_agent', 'update_agent_version',
-  'create_agent_tool', 'update_agent_tool', 'batch_update_objects', 'duplicate_project_structure',
+  'create_agent_tool', 'update_agent_tool',
 ]);
 
 export function withUsageRules(tool: Tool): Tool {

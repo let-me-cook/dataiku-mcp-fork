@@ -30,11 +30,7 @@ export interface RecipeDefinition {
   type: string;
   name: string;
   inputs: string[];
-  outputs: Array<{
-    name: string;
-    new?: boolean;
-    connection?: string;
-  }>;
+  outputs: Array<{ name: string }>;
   code?: string;
   params?: Record<string, any>;
 }
@@ -149,15 +145,6 @@ export class DataikuClient {
     return response.data;
   }
 
-  async buildDataset(projectKey: string, datasetName: string, options: { mode?: string; partition?: string } = {}): Promise<any> {
-    const data = {
-      type: 'RECURSIVE_BUILD',
-      ...options,
-    };
-    const response = await this.client.post(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/actions/build`, data);
-    return response.data;
-  }
-
   async getDatasetSchema(projectKey: string, datasetName: string): Promise<DatasetSchema> {
     const response = await this.client.get(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/schema`);
     return response.data;
@@ -174,11 +161,7 @@ export class DataikuClient {
   }
 
   async clearDataset(projectKey: string, datasetName: string, partition?: string): Promise<any> {
-    const params: Record<string, any> = {};
-    if (partition) {
-      params.partitions = partition;
-    }
-    const response = await this.client.post(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/clear`, params);
+    const response = await this.client.delete(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/data`, { params: { partitions: partition } });
     return response.data;
   }
 
@@ -202,34 +185,17 @@ export class DataikuClient {
     return response.data;
   }
 
-  async validateRecipeSyntax(projectKey: string, recipeName: string, code?: string): Promise<any> {
-    const data: Record<string, any> = {};
-    if (code) {
-      data.code = code;
-    }
-    const response = await this.client.post(`/projects/${seg(projectKey)}/recipes/${seg(recipeName)}/validate`, data);
-    return response.data;
-  }
-
-  async testRecipeDryRun(projectKey: string, recipeName: string, sampleRows: number = 100): Promise<any> {
-    const params = { sampleRows };
-    const response = await this.client.get(`/projects/${seg(projectKey)}/recipes/${seg(recipeName)}/dry-run`, { params });
-    return response.data;
-  }
-
   async createRecipe(projectKey: string, recipe: RecipeDefinition): Promise<any> {
     const data = {
-      name: recipe.name,
-      type: recipe.type,
-      inputs: { main: { items: recipe.inputs.map(input => ({ ref: input })) } },
-      outputs: { main: { items: recipe.outputs.map(output => ({ ref: output.name, appendMode: false })) } },
-      script: recipe.params,
+      recipePrototype: {
+        projectKey,
+        type: recipe.type,
+        name: recipe.name,
+        inputs: { main: { items: recipe.inputs.map(ref => ({ ref })) } },
+        outputs: { main: { items: recipe.outputs.map(output => ({ ref: output.name, appendMode: false })) } },
+      },
+      creationSettings: recipe.code === undefined ? {} : { payload: recipe.code },
     };
-
-    if (recipe.code) {
-      data.script = { ...data.script, code: recipe.code };
-    }
-
     const response = await this.client.post(`/projects/${seg(projectKey)}/recipes/`, data);
     return response.data;
   }
@@ -240,14 +206,6 @@ export class DataikuClient {
 
   async deleteRecipe(projectKey: string, recipeName: string): Promise<any> {
     const response = await this.client.delete(`/projects/${seg(projectKey)}/recipes/${seg(recipeName)}`);
-    return response.data;
-  }
-
-  async runRecipe(projectKey: string, recipeName: string, buildMode?: string): Promise<any> {
-    const data = {
-      type: buildMode || 'RECURSIVE_BUILD',
-    };
-    const response = await this.client.post(`/projects/${seg(projectKey)}/recipes/${seg(recipeName)}/actions/build`, data);
     return response.data;
   }
 
@@ -266,9 +224,8 @@ export class DataikuClient {
     return response.data;
   }
 
-  async getScenarioRunHistory(projectKey: string, scenarioId: string, limit: number = 10): Promise<any> {
-    const params = { limit };
-    const response = await this.client.get(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/runs`, { params });
+  async getScenarioRunHistory(projectKey: string, scenarioId: string, limit: number = 10, onlyFinishedRuns: boolean = false): Promise<any> {
+    const response = await this.client.get(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/get-last-runs`, { params: { limit, onlyFinishedRuns } });
     return response.data;
   }
 
@@ -292,25 +249,6 @@ export class DataikuClient {
     return response.data;
   }
 
-  async addScenarioTrigger(
-    projectKey: string,
-    scenarioId: string,
-    triggerType: 'periodic' | 'hourly' | 'daily' | 'monthly' | 'dataset',
-    params: Record<string, any>
-  ): Promise<any> {
-    const data = {
-      triggerType,
-      ...params,
-    };
-    const response = await this.client.post(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/triggers`, data);
-    return response.data;
-  }
-
-  async removeScenarioTrigger(projectKey: string, scenarioId: string, triggerIdx: number): Promise<any> {
-    const response = await this.client.delete(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/triggers/${triggerIdx}`);
-    return response.data;
-  }
-
   async getScenarioInfo(projectKey: string, scenarioId: string): Promise<any> {
     const response = await this.client.get(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/info`);
     return response.data;
@@ -318,27 +256,6 @@ export class DataikuClient {
 
   async getScenarioSteps(projectKey: string, scenarioId: string): Promise<any> {
     const response = await this.client.get(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/steps`);
-    return response.data;
-  }
-
-  async getScenarioLogs(projectKey: string, scenarioId: string, runId?: string): Promise<any> {
-    const params = runId ? { runId } : {};
-    const response = await this.client.get(`/projects/${seg(projectKey)}/scenarios/${seg(scenarioId)}/logs`, { params });
-    return response.data;
-  }
-
-  async cloneScenario(
-    projectKey: string,
-    sourceScenarioId: string,
-    newScenarioName: string,
-    modifications?: Record<string, any>
-  ): Promise<any> {
-    const data = {
-      sourceScenarioId,
-      newScenarioName,
-      modifications: modifications || {},
-    };
-    const response = await this.client.post(`/projects/${seg(projectKey)}/scenarios/clone`, data);
     return response.data;
   }
 
@@ -363,46 +280,14 @@ export class DataikuClient {
   }
 
   // Project exploration
-  async searchProjectObjects(projectKey: string, searchTerm: string, objectTypes?: string[]): Promise<any[]> {
-    const params: Record<string, any> = { searchTerm };
-    if (objectTypes) {
-      params.objectTypes = objectTypes.join(',');
-    }
-    const response = await this.client.get(`/projects/${seg(projectKey)}/search/`, { params });
-    return response.data;
-  }
-
   // Productivity tools
-  async duplicateProjectStructure(sourceProjectKey: string, targetProjectKey: string, includeData: boolean = false): Promise<any> {
-    const data = {
-      sourceProjectKey,
-      targetProjectKey,
-      includeData,
-    };
-    const response = await this.client.post('/admin/projects/duplicate', data);
-    return response.data;
-  }
-
   async exportProjectConfig(projectKey: string, _format?: 'json' | 'yaml'): Promise<any> {
     return this.operations.exportProject({ project_key: projectKey, include_manifest: true });
   }
 
-  async batchUpdateObjects(projectKey: string, objectType: string, pattern: string, updates: Record<string, any>): Promise<any> {
-    const data = {
-      objectType,
-      pattern,
-      updates,
-    };
-    const response = await this.client.post(`/projects/${seg(projectKey)}/batch-update`, data);
-    return response.data;
-  }
-
   // Environment configuration
-  async getCodeEnvironments(projectKey?: string): Promise<any[]> {
-    const endpoint = projectKey
-      ? `/projects/${seg(projectKey)}/code-envs/`
-      : '/admin/code-envs/';
-    const response = await this.client.get(endpoint);
+  async getCodeEnvironments(): Promise<any[]> {
+    const response = await this.client.get('/admin/code-envs/');
     return Array.isArray(response.data) ? response.data : [response.data];
   }
 
@@ -411,11 +296,8 @@ export class DataikuClient {
     return response.data;
   }
 
-  async getConnections(projectKey?: string): Promise<any[]> {
-    const endpoint = projectKey
-      ? `/projects/${seg(projectKey)}/connections/`
-      : '/admin/connections/';
-    const response = await this.client.get(endpoint);
+  async getConnections(): Promise<any[]> {
+    const response = await this.client.get('/admin/connections/');
     return Array.isArray(response.data) ? response.data : [response.data];
   }
 }

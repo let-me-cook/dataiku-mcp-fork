@@ -307,7 +307,7 @@ test('make run loads .env and exposes all new tools over MCP stdio', { timeout: 
   const file = join(dir, 'test.env');
   const client = new Client({ name: 'agent-smoke-test', version: '1.0.0' });
   try {
-    await writeFile(file, 'DSS_HOST=https://example.invalid\nDSS_API_KEY="test#key with spaces"\n', { mode: 0o600 });
+    await writeFile(file, 'DSS_HOST=https://example.invalid\nDSS_API_KEY="test#key with spaces"\nDSS_INTAKE_URL=https://intake.example/api/\n', { mode: 0o600 });
     const env = Object.fromEntries(Object.entries(process.env).filter(([key, value]) => value !== undefined && !key.startsWith('DSS_')));
     await client.connect(new StdioClientTransport({ command: 'make', args: ['--no-print-directory', '-s', '-C', resolve('..'), 'run', `ENV_FILE=${file}`], env, stderr: 'pipe' }));
     const { tools } = await client.listTools();
@@ -328,7 +328,7 @@ test('make run loads .env and exposes all new tools over MCP stdio', { timeout: 
     assert.match(instructions, /native functionality is insufficient/);
     const rules = await client.callTool({ name: 'get_usage_rules', arguments: {} });
     assert.equal(rules.content[0].text, instructions);
-    for (const name of ['create_recipe', 'update_recipe', 'update_agent_version', 'update_agent_tool', 'batch_update_objects']) {
+    for (const name of ['create_recipe', 'update_recipe', 'update_agent_version', 'update_agent_tool']) {
       assert.match(tools.find(tool => tool.name === name).description, /exactly one output/);
     }
     for (const tool of agentTools) assert.ok(tools.some(item => item.name === tool.name), tool.name);

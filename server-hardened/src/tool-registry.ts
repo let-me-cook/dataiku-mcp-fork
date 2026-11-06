@@ -6,17 +6,17 @@ import { operationTools, isOperation, callOperation, textResult } from './operat
 import { agentTools, callAgentTool, isAgentTool } from './agent-tools.js';
 import { legacyDefinitions } from './legacy-tools.js';
 import { usageRules, usageRulesTool, withUsageRules } from './usage-rules.js';
-import { cobuildTools, denial, readPolicy, withPolicyNote, type Policy } from './tool-policy.js';
+import { intakeTools, denial, readPolicy, withPolicyNote, type Policy } from './tool-policy.js';
 const validator=new AjvJsonSchemaValidator();
 const legacy=new Map(legacyDefinitions.map(d=>[d.tool.name,{...d,validate:validator.getValidator(d.tool.inputSchema)}]));
 // The complete catalog. A name defined earlier wins; duplicates are a build-time mistake caught by the tests.
 export const allTools:Tool[]=[...operationTools,usageRulesTool,...agentTools,...legacyDefinitions.map(d=>d.tool)].map(withUsageRules).map(withPolicyNote);
 const byName=new Map(allTools.map(t=>[t.name,t]));
-export function listTools(policy:Policy=readPolicy()):Tool[]{return allTools.filter(t=>!cobuildTools.has(t.name)||(policy.cobuild&&policy.instanceType==='design'));}
+export function listTools(policy:Policy=readPolicy()):Tool[]{return allTools.filter(t=>!intakeTools.has(t.name)||policy.intake);}
 export async function callTool(client:DataikuClient,name:string,args:unknown,policy:Policy=readPolicy()):Promise<CallToolResult>{
   const tool=byName.get(name);
   if(!tool)return textResult(client.operations,{error:{type:'ClientError',message:`Unknown tool: ${name}`}},true);
-  const refused=denial(tool,args,policy);
+  const refused=denial(tool,policy);
   if(refused)return textResult(client.operations,{error:{type:'PolicyRefusal',message:refused}},true);
   if(name==='get_usage_rules')return {content:[{type:'text',text:usageRules}]};
   if(isOperation(name))return callOperation(client.operations,name,args);

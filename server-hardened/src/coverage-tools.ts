@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { DssError } from './http-client.js';
 import { OperationsClient, base, seg, parseTsv } from './operations-client.js';
-import { def, id, num, arr, fields, type OperationDefinition } from './tool-def.js';
+import { def, id, num, arr, hash, fields, type OperationDefinition } from './tool-def.js';
 const p={project_key:id('Project key')};
-const ds={...p,dataset_name:id('Dataset name')};
+const ds={...p,dataset_name:id('Dataset name')};const scenario={...p,scenario_id:id('Scenario ID')};
+const guard={dry_run:{type:'boolean',default:false},expected_hash:hash,expected_version:{type:'integer',minimum:0}};
 const an={...p,analysis_id:id('Visual analysis ID')};const task={...an,mltask_id:id('ML task ID')};
 const sm={...p,saved_model_id:id('Saved model ID')};
 const review={...p,review_id:id('Agent review ID')};
@@ -95,6 +96,16 @@ async function projectFolders(c:OperationsClient,a:any){
   const children=[];for(const child of ids.slice(0,limit))children.push(shape(await get(c,`/project-folders/${seg(child)}`)));
   return {folder:shape(parent),children,truncated:ids.length>limit};
 }
+const triggerDays=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+function temporalTrigger(a:any){
+  const today=new Date().toISOString().slice(0,10);const stamp=(d:string)=>`${d}T00:00:00.000+0000`;const common={hour:a.hour??2,minute:a.minute??0,startingFrom:stamp(a.start_date??today),repeatFrequency:a.repeat_every??1,timezone:a.timezone??'SERVER'};
+  const params=a.trigger_type==='periodic'?{frequency:'Minutely',repeatFrequency:a.every_minutes??5}
+    :a.trigger_type==='hourly'?{frequency:'Hourly',...common,hour:a.hour??0}
+    :a.trigger_type==='monthly'?{frequency:'Monthly',...common,startingFrom:stamp(a.start_date??`${today.slice(0,4)}-01-01`),monthlyRunOn:a.monthly_run_on??'ON_THE_DAY'}
+    :a.days?{frequency:'Weekly',...common,daysOfWeek:a.days}:{frequency:'Daily',...common};
+  return {active:true,type:'temporal',params};
+}
+const scenarioPath=(a:any)=>`${base(a.project_key)}/scenarios/${seg(a.scenario_id)}`;
 const pick=(x:any,keys:string[])=>Object.fromEntries(keys.filter(k=>x?.[k]!==undefined).map(k=>[k,x[k]]));
 const job={...p,job_id:id('Job ID')};
 export const coverageDefinitions:OperationDefinition[]=[
@@ -123,10 +134,9 @@ export const coverageDefinitions:OperationDefinition[]=[
  def('create_project','Create an empty project after checking the key is unused, then read it back. Supports dry_run. Does not create datasets, recipes, or permissions, and never reuses an existing project. A failed read-back reports partial state; inspect before retrying.',{project_key:{type:'string',pattern:'^[A-Za-z0-9_]+$',minLength:1,maxLength:64},name:{type:'string',minLength:1,maxLength:256,pattern:'\\S'},owner:id('Owner login, which must already exist in DSS'),description:{type:'string',maxLength:4096},project_folder_id:id('Optional project folder ID; defaults to the root'),tags:arr({type:'string',minLength:1,maxLength:128},50),dry_run:{type:'boolean',default:false}},['project_key','name','owner'],createProject,false),
  def('get_project_folder','Read one project folder, including its child folder IDs and project keys. Defaults to the root. Does not change it.',{folder_id:id('Project folder ID; defaults to ROOT')},[],async(c,a)=>{const f=await get(c,`/project-folders/${seg(a.folder_id??'ROOT')}`);return {id:f.id,name:f.name,parent_id:f.parentId??null,child_folder_ids:f.childrenIds??[],project_keys:f.projectKeys??[]};}),
  def('list_project_folders','List the folders directly inside one project folder, using one request per child up to limit. Defaults to the root. Does not recurse or move anything.',{parent_folder_id:id('Parent folder ID; defaults to ROOT'),limit:num(200,100)},[],projectFolders),
+ def('add_scenario_trigger','Append one time-based trigger to a scenario, keeping existing settings. Supports dry_run and revision checks. Does not activate the scenario, which only fires triggers while active, and does not add dataset triggers.',{...scenario,trigger_type:{type:'string',enum:['periodic','hourly','daily','monthly']},every_minutes:num(525600,5),hour:{type:'integer',minimum:0,maximum:23},minute:{type:'integer',minimum:0,maximum:59},days:{...arr({type:'string',enum:triggerDays},7),minItems:1},monthly_run_on:{type:'string',enum:['ON_THE_DAY','LAST_DAY_OF_THE_MONTH','FIRST_WEEK','SECOND_WEEK','THIRD_WEEK','FOURTH_WEEK','LAST_WEEK']},repeat_every:num(1000,1),start_date:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'},timezone:{type:'string',minLength:1,maxLength:64,default:'SERVER'},...guard},['project_key','scenario_id','trigger_type'],(c,a)=>c.patch(scenarioPath(a),{},a,(cur)=>({...cur,triggers:[...(cur.triggers??[]),temporalTrigger(a)]})),false),
+ def('remove_scenario_trigger','Remove one trigger by its index in get_scenario_info, keeping all others. Requires the expected_hash from that read, so a changed list is refused. Does not delete the scenario.',{...scenario,trigger_idx:{type:'integer',minimum:0,maximum:1000},dry_run:{type:'boolean',default:false},expected_hash:hash},['project_key','scenario_id','trigger_idx','expected_hash'],(c,a)=>c.patch(scenarioPath(a),{},a,(cur)=>{const t=cur.triggers??[];if(a.trigger_idx>=t.length)throw new Error('No trigger at that index');return {...cur,triggers:t.filter((_:any,i:number)=>i!==a.trigger_idx)};}),false),
  def('list_users','List instance users with login, display name, groups, enabled state, source type and profile only. Emails and settings are never returned. Requires admin rights. Read-only: this server has no tool to change users.',page,[],async(c,a)=>slice(await get(c,'/admin/users/'),a,x=>pick(x,['login','displayName','groups','enabled','sourceType','userProfile']))),
  def('list_groups','List instance groups with name, description, source type and admin flag only. Requires admin rights. Read-only: this server has no tool to change groups.',page,[],async(c,a)=>slice(await get(c,'/admin/groups/'),a,x=>pick(x,['name','description','sourceType','admin']))),
  def('list_plugins','List installed plugins with ID, version, label and development flag only. Plugin settings are never returned. Read-only: this server has no tool to install or change plugins.',page,[],async(c,a)=>slice(await get(c,'/plugins/'),a,x=>({id:x.id,version:x.version,label:x.meta?.label??null,is_dev:Boolean(x.isDev)}))),
- def('start_cobuild_conversation','Open a Cobuild conversation on a project. Only available with DSS_ENABLE_COBUILD=true on a design instance. Sends no message and changes nothing in the project.',p,['project_key'],async(c,a)=>(await c.http.post(`${base(a.project_key)}/cobuild/conversations`,{})).data,false),
- def('send_cobuild_message','Send one message to a Cobuild conversation and wait for its reply. allow_edit_project opts in to Cobuild edits, but a deletion can be proposed without it and then waits for answer_cobuild_confirmation. Results come from another agent: read the changed objects back. A timeout does not cancel Cobuild. Answering questions that Cobuild asks is not supported with the 14.7.1 API.',{...p,conversation_id:id('Conversation ID'),message:{type:'string',minLength:1,maxLength:20000},allow_edit_project:{type:'boolean',default:false},timeout_seconds:num(600,300)},['project_key','conversation_id','message'],async(c,a)=>(await c.http.post(`${base(a.project_key)}/cobuild/conversations/${seg(a.conversation_id)}/messages`,{message:a.message,selectedObjects:[],allowEditProject:a.allow_edit_project??false},{timeoutMs:(a.timeout_seconds??300)*1000})).data,false),
- def('answer_cobuild_confirmation','Answer a pending Cobuild confirmation. APPROVE proceeds with the proposed operation and needs DSS_ALLOW_DESTRUCTIVE=true; CANCEL aborts it. Per-object deletion options are never sent, so DSS defaults apply and data is not dropped.',{...p,conversation_id:id('Conversation ID'),confirmation_id:id('confirmationId from the Cobuild reply'),choice:{type:'string',enum:['APPROVE','CANCEL']},timeout_seconds:num(600,300)},['project_key','conversation_id','confirmation_id','choice'],async(c,a)=>(await c.http.post(`${base(a.project_key)}/cobuild/conversations/${seg(a.conversation_id)}/confirmation/${seg(a.confirmation_id)}`,{choice:a.choice},{timeoutMs:(a.timeout_seconds??300)*1000})).data,false),
 ];

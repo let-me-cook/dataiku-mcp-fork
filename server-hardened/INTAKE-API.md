@@ -5,6 +5,8 @@ without access to the frontend/backend source. Upload registration and metadata
 row tools are **adapters for an external service**, not a replacement backend.
 They do not perform a file upload followed by an unrelated full-table rewrite.
 
+The four backend tools (`get_intake_capabilities`, `register_document_upload`, `read_metadata_row`, `upsert_metadata_row`) are listed only when `DSS_INTAKE_URL` is set.
+
 Run `make build` and restart the MCP client to load the new tools. Existing
 running processes retain their loaded code until restarted.
 

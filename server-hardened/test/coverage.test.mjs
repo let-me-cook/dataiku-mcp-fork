@@ -5,7 +5,7 @@ import {callTool,listTools,allTools} from '../dist/tool-registry.js';
 import {readPolicy} from '../dist/tool-policy.js';
 import {sanitize} from '../dist/http-client.js';
 import {rm} from 'node:fs/promises';
-const open={instanceType:'design',allowDestructive:true,cobuild:true};
+const open={instanceType:'design',allowDestructive:true,intake:true};
 const P='https://dss.example/public/api/projects/P';
 const running={baseStatus:{state:'RUNNING'}},done={baseStatus:{state:'DONE'}},failed={baseStatus:{state:'FAILED'}};
 function h(t,replies=[],policy=open){
@@ -26,7 +26,7 @@ test('every tool has unique name, closed schema, annotations and a description',
 });
 test('older tools reject bad arguments before any request',async t=>{
  const x=h(t);
- for(const [n,a] of [['delete_dataset',{project_key:'P'}],['delete_dataset',{project_key:'P',dataset_name:'d',surprise:1}],['delete_dataset',{project_key:'P',dataset_name:' '}],['cancel_running_jobs',{project_key:'P',job_ids:[]}],['get_recent_runs',{project_key:'P',limit:100000}],['add_scenario_trigger',{project_key:'P',scenario_id:'s',trigger_type:'weekly'}],['create_scenario',{project_key:'P',scenario_name:'s',scenario_type:'other'}]])assert.match(failure(await x.call(n,a)).message,/Invalid arguments/,n);
+ for(const [n,a] of [['delete_dataset',{project_key:'P'}],['delete_dataset',{project_key:'P',dataset_name:'d',surprise:1}],['delete_dataset',{project_key:'P',dataset_name:' '}],['cancel_running_jobs',{project_key:'P',job_ids:[]}],['get_recent_runs',{project_key:'P',limit:100000}],['add_scenario_trigger',{project_key:'P',scenario_id:'s',trigger_type:'yearly'}],['create_scenario',{project_key:'P',scenario_name:'s',scenario_type:'other'}]])assert.match(failure(await x.call(n,a)).message,/Invalid arguments/,n);
 });
 test('validation errors do not echo argument values',async t=>{const x=h(t);assert.doesNotMatch(JSON.stringify(failure(await x.call('delete_dataset',{project_key:'P',secret_value:'hunter2'}))),/hunter2/);});
 test('older tools encode identifiers so a value cannot leave its URL segment',async t=>{
@@ -49,45 +49,69 @@ test('get_code_environments and list_projects work without arguments',async t=>{
 
 // T1 and U5: one policy gate in front of every tool.
 test('policy parsing is strict and defaults to guarded design mode',()=>{
- assert.deepEqual(readPolicy({}),{instanceType:'design',allowDestructive:false,cobuild:false});
- assert.deepEqual(readPolicy({DSS_ALLOW_DESTRUCTIVE:'TRUE',DSS_ENABLE_COBUILD:'1'}),{instanceType:'design',allowDestructive:false,cobuild:false});
+ assert.deepEqual(readPolicy({}),{instanceType:'design',allowDestructive:false,intake:false});
+ assert.equal(readPolicy({DSS_ALLOW_DESTRUCTIVE:'TRUE'}).allowDestructive,false);
  assert.equal(readPolicy({DSS_INSTANCE_TYPE:'automation'}).instanceType,'automation');
  assert.throws(()=>readPolicy({DSS_INSTANCE_TYPE:'govern'}),/must be design or automation/);
 });
 test('destructive tools are refused without the opt-in and make no request',async t=>{
  const x=h(t,[],{...open,allowDestructive:false});
- for(const [n,a] of [['delete_dataset',{project_key:'P',dataset_name:'d'}],['delete_recipe',{project_key:'P',recipe_name:'r'}],['delete_scenario',{project_key:'P',scenario_id:'s'}],['clear_dataset',{project_key:'P',dataset_name:'d'}],['delete_agent',{project_key:'P',agent_id:'a'}],['delete_agent_tool',{project_key:'P',tool_id:'t'}],['batch_update_objects',{project_key:'P',object_type:'x',pattern:'y',updates:{}}],['duplicate_project_structure',{source_project_key:'A',target_project_key:'B'}]]){const e=failure(await x.call(n,a));assert.equal(e.type,'PolicyRefusal',n);assert.match(e.message,/DSS_ALLOW_DESTRUCTIVE=true/,n);}
+ for(const [n,a] of [['delete_dataset',{project_key:'P',dataset_name:'d'}],['delete_recipe',{project_key:'P',recipe_name:'r'}],['delete_scenario',{project_key:'P',scenario_id:'s'}],['clear_dataset',{project_key:'P',dataset_name:'d'}],['delete_agent',{project_key:'P',agent_id:'a'}],['delete_agent_tool',{project_key:'P',tool_id:'t'}]]){const e=failure(await x.call(n,a));assert.equal(e.type,'PolicyRefusal',n);assert.match(e.message,/DSS_ALLOW_DESTRUCTIVE=true/,n);}
  assert.equal(x.requests.length,0);
  assert.match(allTools.find(t=>t.name==='delete_dataset').description,/Refused unless DSS_ALLOW_DESTRUCTIVE=true/);
 });
 test('automation refuses every edit tool, allows reads and listed execution',async t=>{
  const auto={...open,instanceType:'automation'};
  const x=h(t,[[],{id:'job'}],auto);
- for(const [n,a] of [['update_recipe',{project_key:'P',recipe_name:'r',patch:{}}],['create_project',{project_key:'N',name:'n',owner:'o'}],['write_project_library_file',{project_key:'P',path:'python/a.py',mode:'create',content:''}],['delete_dataset',{project_key:'P',dataset_name:'d'}],['send_cobuild_message',{project_key:'P',conversation_id:'c',message:'m'}]])assert.match(failure(await x.call(n,a)).message,/DSS_INSTANCE_TYPE=automation/,n);
+ for(const [n,a] of [['update_recipe',{project_key:'P',recipe_name:'r',patch:{}}],['create_project',{project_key:'N',name:'n',owner:'o'}],['write_project_library_file',{project_key:'P',path:'python/a.py',mode:'create',content:''}],['delete_dataset',{project_key:'P',dataset_name:'d'}]])assert.match(failure(await x.call(n,a)).message,/DSS_INSTANCE_TYPE=automation/,n);
  assert.equal(x.requests.length,0);
  value(await x.call('list_projects'));
  value(await x.call('start_job',{project_key:'P',outputs:[{id:'d',type:'DATASET'}]}));req(x,1,'POST',`${P}/jobs/`);
 });
-test('Cobuild tools are hidden and refused unless enabled on a design instance',async t=>{
- const names=p=>listTools(p).map(x=>x.name);const cobuild='send_cobuild_message';
- assert.ok(!names({...open,cobuild:false}).includes(cobuild));assert.ok(names(open).includes(cobuild));assert.ok(!names({...open,instanceType:'automation'}).includes(cobuild));
- assert.equal(listTools({...open,cobuild:false}).length,allTools.length-3);
- const x=h(t,[],{...open,cobuild:false});assert.match(failure(await x.call(cobuild,{project_key:'P',conversation_id:'c',message:'m'})).message,/DSS_ENABLE_COBUILD=true/);assert.equal(x.requests.length,0);
+test('intake tools are hidden and refused until a backend URL is set',async t=>{
+ const names=p=>listTools(p).map(x=>x.name);assert.ok(!names({...open,intake:false}).includes('upsert_metadata_row'));assert.ok(names(open).includes('upsert_metadata_row'));
+ assert.equal(listTools({...open,intake:false}).length,allTools.length-4);assert.equal(readPolicy({DSS_INTAKE_URL:' '}).intake,false);assert.equal(readPolicy({DSS_INTAKE_URL:'https://intake.example'}).intake,true);
+ const x=h(t,[],{...open,intake:false});assert.match(failure(await x.call('get_intake_capabilities',{project_key:'P'})).message,/DSS_INTAKE_URL/);assert.equal(x.requests.length,0);
+});
+test('removed tools no longer exist',async t=>{
+ const x=h(t);for(const n of ['search_project_objects','batch_update_objects','duplicate_project_structure','clone_scenario','validate_recipe_syntax','test_recipe_dry_run','get_scenario_logs','build_dataset','run_recipe','send_cobuild_message'])assert.match(failure(await x.call(n,{})).message,/Unknown tool/,n);
+ assert.match(failure(await x.call('get_connections',{project_key:'P'})).message,/Invalid arguments/);
 });
 
-// U1: Cobuild contract from the 14.7.1 SDK.
-test('Cobuild requests match the SDK and edits stay opt-in',async t=>{
- const x=h(t,[{conversationId:'c1'},{message:'hi'},{message:'edited'}]);
- assert.equal(value(await x.call('start_cobuild_conversation',{project_key:'P'})).conversationId,'c1');req(x,0,"POST",`${P}/cobuild/conversations`,{});
- value(await x.call('send_cobuild_message',{project_key:'P',conversation_id:'c1',message:'look'}));req(x,1,'POST',`${P}/cobuild/conversations/c1/messages`,{message:'look',selectedObjects:[],allowEditProject:false});
- value(await x.call('send_cobuild_message',{project_key:'P',conversation_id:'c1',message:'do',allow_edit_project:true}));assert.equal(x.requests[2].body.allowEditProject,true);
+// Older tools rewritten to the SDK request shape.
+test('create_recipe sends the SDK prototype and payload',async t=>{
+ const x=h(t,[{name:'r'},{name:'j'}]);
+ value(await x.call('create_recipe',{project_key:'P',recipe_type:'python',recipe_name:'r',inputs:['i'],outputs:[{name:'o'}],code:'print(1)'}));
+ req(x,0,'POST',`${P}/recipes/`,{recipePrototype:{projectKey:'P',type:'python',name:'r',inputs:{main:{items:[{ref:'i'}]}},outputs:{main:{items:[{ref:'o',appendMode:false}]}}},creationSettings:{payload:'print(1)'}});
+ value(await x.call('create_recipe',{project_key:'P',recipe_type:'join',recipe_name:'j',inputs:['i'],outputs:[{name:'o'}]}));assert.deepEqual(x.requests[1].body.creationSettings,{});
+ assert.match(failure(await x.call('create_recipe',{project_key:'P',recipe_type:'join',recipe_name:'j',inputs:['i'],outputs:[{name:'o',new:true}]})).message,/Invalid arguments/);
 });
-test('Approving a Cobuild deletion needs the destructive opt-in; cancelling does not',async t=>{
- const a={project_key:'P',conversation_id:'c',confirmation_id:'k',choice:'APPROVE'};
- const x=h(t,[{message:'cancelled'}],{...open,allowDestructive:false});
- assert.equal(failure(await x.call('answer_cobuild_confirmation',a)).type,'PolicyRefusal');assert.equal(x.requests.length,0);
- value(await x.call('answer_cobuild_confirmation',{...a,choice:'CANCEL'}));req(x,0,'POST',`${P}/cobuild/conversations/c/confirmation/k`,{choice:'CANCEL'});
- const y=h(t,[{message:'done'}]);value(await y.call('answer_cobuild_confirmation',a));assert.deepEqual(y.requests[0].body,{choice:'APPROVE'});
+test('clear_dataset and run history use the SDK endpoints',async t=>{
+ const x=h(t,[null,[{id:'run'}]]);
+ value(await x.call('clear_dataset',{project_key:'P',dataset_name:'d',partition:'2026'}));req(x,0,'DELETE',`${P}/datasets/d/data?partitions=2026`);
+ value(await x.call('get_scenario_run_history',{project_key:'P',scenario_id:'s',limit:2,only_finished:true}));req(x,1,'GET',`${P}/scenarios/s/get-last-runs?limit=2&onlyFinishedRuns=true`);
+});
+const scenario={id:'s',name:'S',type:'step_based',params:{steps:[1]},triggers:[{active:true,type:'temporal',params:{frequency:'Minutely',repeatFrequency:9}}]};
+test('add_scenario_trigger appends the SDK trigger and keeps the rest',async t=>{
+ const x=h(t,[scenario,scenario,null]);
+ value(await x.call('add_scenario_trigger',{project_key:'P',scenario_id:'s',trigger_type:'daily',hour:3,days:['Monday'],start_date:'2026-01-02'}));
+ req(x,2,'PUT',`${P}/scenarios/s`);assert.deepEqual(x.requests[2].body.params,{steps:[1]});assert.equal(x.requests[2].body.triggers.length,2);
+ assert.deepEqual(x.requests[2].body.triggers[1],{active:true,type:'temporal',params:{frequency:'Weekly',hour:3,minute:0,startingFrom:'2026-01-02T00:00:00.000+0000',repeatFrequency:1,timezone:'SERVER',daysOfWeek:['Monday']}});
+});
+test('add_scenario_trigger builds each frequency, and dry_run does not save',async t=>{
+ const x=h(t,[scenario,scenario,scenario]);const params=async a=>value(await x.call('add_scenario_trigger',{project_key:'P',scenario_id:'s',dry_run:true,...a})).proposed_settings.triggers[1].params;
+ assert.deepEqual(await params({trigger_type:'periodic',every_minutes:30}),{frequency:'Minutely',repeatFrequency:30});
+ assert.equal((await params({trigger_type:'hourly',minute:15,start_date:'2026-01-02'})).hour,0);
+ const m=await params({trigger_type:'monthly',start_date:'2026-03-01',monthly_run_on:'LAST_WEEK'});assert.deepEqual([m.frequency,m.monthlyRunOn,m.startingFrom],['Monthly','LAST_WEEK','2026-03-01T00:00:00.000+0000']);
+ assert.ok(x.requests.every(r=>r.method==='GET'));
+});
+test('remove_scenario_trigger needs a matching hash and a real index',async t=>{
+ const {revision}=await import('../dist/operations-client.js');const expected_hash=revision(scenario).sha256;const a={project_key:'P',scenario_id:'s',expected_hash};
+ const x=h(t,[scenario,scenario,null,scenario,scenario]);
+ value(await x.call('remove_scenario_trigger',{...a,trigger_idx:0}));assert.deepEqual(x.requests[2].body.triggers,[]);assert.equal(x.requests[2].method,'PUT');
+ assert.match(failure(await x.call('remove_scenario_trigger',{...a,trigger_idx:5})).message,/No trigger/);
+ assert.match(failure(await x.call('remove_scenario_trigger',{...a,trigger_idx:0,expected_hash:'0'.repeat(64)})).message,/Version conflict/);
+ assert.match(failure(await x.call('remove_scenario_trigger',{project_key:'P',scenario_id:'s',trigger_idx:0})).message,/Invalid arguments/);
 });
 
 // T2: job helpers.

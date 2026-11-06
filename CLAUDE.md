@@ -38,7 +38,7 @@ Tests import from `dist/`, so `make test` (which builds first) is the reliable w
 
 - `mcp-server.ts`: thin MCP `Server` setup. `tool-registry.ts` holds the catalog and `callTool`, the single path every
   call takes. `tool-policy.ts` is the gate in front of it (`DSS_INSTANCE_TYPE`, `DSS_ALLOW_DESTRUCTIVE`,
-  `DSS_ENABLE_COBUILD`). New write tools are refused on automation nodes until added to `automationWrites`.
+  `DSS_INTAKE_URL`). New write tools are refused on automation nodes until added to `automationWrites`.
 - `tool-def.ts`: `def(name, description, properties, required, run, readOnly)` and schema helpers. Use it for new tools.
 - `operations-tools.ts` + `operations-client.ts`, and `coverage-tools.ts`: the newer tools, validated with Ajv before
   dispatch. `legacy-tools.ts`: upstream tools calling `DataikuClient`; several use endpoints absent from the SDK.

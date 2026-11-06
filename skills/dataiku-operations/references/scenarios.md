@@ -4,6 +4,6 @@
 
 **Change:** `create_scenario`, `update_scenario` and `add_scenario_build_step`. Read the revision first, and preview with `dry_run`. Changing production schedules needs confirmation.
 
-**Run:** `run_scenario` returns without waiting. Track resulting jobs with `get_recent_runs` and `wait_for_job`.
+**Triggers:** `add_scenario_trigger` adds time-based triggers only, and `remove_scenario_trigger` removes one by index using the hash from `get_scenario_info`. A trigger only fires while the scenario is active.
 
-**Less reliable tools:** `add_scenario_trigger`, `remove_scenario_trigger`, `clone_scenario`, `get_scenario_logs` and `get_scenario_run_history` use endpoints not found in the 14.7.1 SDK and may fail. If one fails with not found, report that instead of retrying.
+**Run:** `run_scenario` returns without waiting. Check `get_scenario_run_history`, and track resulting jobs with `get_recent_runs` and `wait_for_job`.
