@@ -4,7 +4,7 @@ This fork focuses on source, artifact, and dependency hardening. Enterprise depl
 
 ## Controls applied
 
-- Pinned `@modelcontextprotocol/sdk` to `1.30.0`.
+- Pinned `@modelcontextprotocol/sdk` to `1.32.2`.
 - Removed Axios and dotenv.
 - Uses the Node.js native `fetch` implementation.
 - Sends DSS API keys using HTTP Basic authentication (key as username, empty password), matching the official DSS 14.7.1 client.
@@ -38,7 +38,11 @@ The upstream tools now have schemas with bounds, annotations and URL segment enc
 
 ## Headless-derived tools verification
 
-Request shapes for the job, profile, library search, data quality, ML, agent review, project, folder, admin and Cobuild tools were checked against the `dataiku-api-client` 14.7.1 source and tested offline with mocked HTTP. They have not been run against a live instance. No dependencies were added.
+Request shapes for the job, profile, library search, data quality, ML, agent review, project, folder, admin and Cobuild tools were checked against the `dataiku-api-client` 14.7.1 source and tested offline with mocked HTTP. No dependencies were added.
+
+A read-only live check on 2026-11-06 used sandbox and tutorial projects and a DSS 14.7.1 instance. These returned real results: `get_dataset_profile`, `search_project_library`, `list_data_quality_rules`, `get_data_quality_results`, `get_data_quality_history`, `list_ml_analyses`, `get_ml_analysis`, `list_ml_tasks`, `list_saved_models`, `list_saved_model_versions`, `get_saved_model_version_details`, `list_agent_reviews`, `get_project_folder`, `list_project_folders`, `list_users`, `list_groups`, `list_plugins`, `check_dataset_metrics`. `get_data_quality_status` returned 404 where a dataset had no results.
+
+The same check confirmed a 404 for `search_project_objects` and for the project-scoped forms of `get_code_environments` and `get_connections`. Not exercised live, because those projects had no jobs, scenarios or agent reviews: `get_job_log_tail`, `wait_for_job`, the agent review detail tools and the scenario tools. No write tool has been run live, including `abort_job`, `create_project` and the Cobuild tools. The Cobuild conversation path answered 405 to GET, so the route exists; whether Cobuild works on an instance is unknown until a conversation is created.
 
 ## Agent extension verification
 

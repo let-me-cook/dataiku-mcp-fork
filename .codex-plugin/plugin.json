@@ -5,8 +5,8 @@
   "author": {
     "name": "PT All Data International"
   },
-  "homepage": "https://github.com/hef-max/mcp-dataiku-audited",
-  "repository": "https://github.com/hef-max/mcp-dataiku-audited",
+  "homepage": "https://github.com/let-me-cook/mcp-dataiku-audited",
+  "repository": "https://github.com/let-me-cook/mcp-dataiku-audited",
   "license": "MIT",
   "keywords": [
     "dataiku",
@@ -29,7 +29,7 @@
       "Scenario operations",
       "Job monitoring and debugging"
     ],
-    "websiteURL": "https://github.com/hef-max/mcp-dataiku-audited",
+    "websiteURL": "https://github.com/let-me-cook/mcp-dataiku-audited",
     "defaultPrompt": [
       "Show the projects available in Dataiku DSS",
       "Inspect a Dataiku project flow and its datasets",

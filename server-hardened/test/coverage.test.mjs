@@ -4,6 +4,7 @@ import {DataikuClient} from '../dist/dataiku-client.js';
 import {callTool,listTools,allTools} from '../dist/tool-registry.js';
 import {readPolicy} from '../dist/tool-policy.js';
 import {sanitize} from '../dist/http-client.js';
+import {rm} from 'node:fs/promises';
 const open={instanceType:'design',allowDestructive:true,cobuild:true};
 const P='https://dss.example/public/api/projects/P';
 const running={baseStatus:{state:'RUNNING'}},done={baseStatus:{state:'DONE'}},failed={baseStatus:{state:'FAILED'}};
@@ -187,7 +188,7 @@ test('a known key crossing the clip point is not partly returned',async t=>{
  const secret='known-super-secret';const x=h(t,[[{name:'a.py'}],{data:'x'.repeat(290)+secret}]);const d=value(await x.call('search_project_library',{project_key:'P',query:'x'}));assert.doesNotMatch(d.matches[0].text,/known-super/);
 });
 test('large model details over the normal limit are returned, not refused',async t=>{
- const big={blob:'x'.repeat(6*1024*1024)};const x=h(t,[big]);const d=value(await x.call('get_ml_model_details',{project_key:'P',analysis_id:'a',mltask_id:'m',model_id:'i'}));assert.equal(d.inline_truncated,true);assert.ok(d.artifact.artifact_id);
+ const big={blob:'x'.repeat(6*1024*1024)};const x=h(t,[big]);const d=value(await x.call('get_ml_model_details',{project_key:'P',analysis_id:'a',mltask_id:'m',model_id:'i'}));assert.equal(d.inline_truncated,true);assert.ok(d.artifact.artifact_id);await rm(d.artifact.local_path,{force:true});
 });
 
 // T5, T6 and T7: read-only families.
