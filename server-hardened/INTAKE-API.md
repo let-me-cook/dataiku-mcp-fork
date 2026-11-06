@@ -261,6 +261,6 @@ rows, files, library contents, or Flow layouts were modified.
 The DSS requests follow the official `dataiku-api-client`
 `dss/projectlibrary.py` and `dss/sqlquery.py` implementations. References:
 [Dataiku library REST operations](https://doc.dataiku.com/dss/api/latest/rest/),
-[Dataiku storage variables](https://doc.dataiku.com/dss/14/connecting/relocation.html),
+[Dataiku storage variables](https://doc.dataiku.com/dss/latest/connecting/relocation.html),
 [PostgreSQL constraints](https://www.postgresql.org/docs/current/catalog-pg-constraint.html),
 and [PostgreSQL columns](https://www.postgresql.org/docs/current/catalog-pg-attribute.html).

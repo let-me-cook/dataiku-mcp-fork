@@ -168,4 +168,4 @@ Review the returned settings and warnings, then repeat with `"dry_run":false`. F
 
 The endpoint methods and payloads were checked against Dataiku's official [dataiku-api-client source distribution](https://pypi.org/project/dataiku-api-client/), specifically `dss/project.py`, `dss/agent.py`, `dss/agent_tool.py`, `dss/llm.py`, and `dssclient.py`. The source archive SHA-256 is `195f392dbfc61db3cb66093f5e7349b9e7a9d51de7c34dee7d36e208ad054339`. The Python package is a development reference and is not installed or required at runtime.
 
-These tests verify the client contract, not a live DSS deployment. See also Dataiku's [DSS 14 Code Agents documentation](https://doc.dataiku.com/dss/14/agents/code-agents.html).
+These tests verify the client contract, not a live DSS deployment. See also Dataiku's [DSS Code Agents documentation](https://doc.dataiku.com/dss/latest/agents/code-agents.html).
