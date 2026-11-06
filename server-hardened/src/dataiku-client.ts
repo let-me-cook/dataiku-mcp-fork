@@ -1,81 +1,15 @@
-type QueryValue = string | number | boolean | undefined;
-type RequestOptions = { params?: Record<string, QueryValue> };
+import { createDataset as provisionDataset } from './provisioning.js';
+import { OperationsClient } from './operations-client.js';
+import { AgentClient } from './agent-client.js';
 
-const DEFAULT_TIMEOUT_MS = 30_000;
-const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+import { SecureHttpClient } from './http-client.js';
+export { SecureHttpClient } from './http-client.js';
 
-class SecureHttpClient {
-  constructor(
-    private readonly baseUrl: URL,
-    private readonly apiKey: string,
-  ) {}
-
-  private async request(
-    method: string,
-    relativePath: string,
-    body?: unknown,
-    options: RequestOptions = {},
-  ): Promise<{ data: any }> {
-    const cleanPath = relativePath.replace(/^\/+/, '');
-    const url = new URL(cleanPath, this.baseUrl);
-    for (const [key, value] of Object.entries(options.params ?? {})) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
-    }
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method,
-        redirect: 'error',
-        signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          Accept: 'application/json',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'TimeoutError') {
-        throw new Error('Dataiku API request timed out');
-      }
-      throw new Error('Unable to connect securely to Dataiku DSS');
-    }
-
-    if (response.status === 401) throw new Error('Invalid Dataiku API key');
-    if (response.status === 403) throw new Error('Insufficient permissions for Dataiku operation');
-    if (response.status === 404) throw new Error('Dataiku resource not found');
-    if (!response.ok) throw new Error(`Dataiku API request failed with status ${response.status}`);
-
-    const declaredLength = Number(response.headers.get('content-length') ?? 0);
-    if (declaredLength > MAX_RESPONSE_BYTES) {
-      throw new Error('Dataiku API response exceeded the configured size limit');
-    }
-
-    const text = await response.text();
-    if (Buffer.byteLength(text, 'utf8') > MAX_RESPONSE_BYTES) {
-      throw new Error('Dataiku API response exceeded the configured size limit');
-    }
-    return { data: text.length === 0 ? null : JSON.parse(text) };
-  }
-
-  get(path: string, options?: RequestOptions) {
-    return this.request('GET', path, undefined, options);
-  }
-  post(path: string, body?: unknown) {
-    return this.request('POST', path, body);
-  }
-  put(path: string, body?: unknown) {
-    return this.request('PUT', path, body);
-  }
-  delete(path: string, options?: RequestOptions) {
-    return this.request('DELETE', path, undefined, options);
-  }
-}
 export interface DataikuConfig {
   host: string;
   apiKey: string;
   insecureTls?: boolean;
+  allowHttp?: boolean;
 }
 
 export interface DatasetSchema {
@@ -123,7 +57,9 @@ export interface JobInfo {
 }
 
 export class DataikuClient {
-  private client: SecureHttpClient;
+  readonly agents: AgentClient;
+  readonly operations: OperationsClient;
+  readonly client: SecureHttpClient;
   private config: DataikuConfig;
 
   constructor(config?: Partial<DataikuConfig>) {
@@ -131,6 +67,7 @@ export class DataikuClient {
       host: config?.host || process.env.DSS_HOST || '',
       apiKey: config?.apiKey || process.env.DSS_API_KEY || '',
       insecureTls: config?.insecureTls || process.env.DSS_INSECURE_TLS === 'true',
+      allowHttp: config?.allowHttp ?? process.env.DSS_ALLOW_HTTP === 'true',
     };
 
     if (!this.config.host || !this.config.apiKey) {
@@ -145,10 +82,13 @@ export class DataikuClient {
     try {
       host = new URL(this.config.host);
     } catch {
-      throw new Error('DSS_HOST must be a valid HTTPS URL');
+      throw new Error('DSS_HOST must be a valid HTTP or HTTPS URL');
     }
-    if (host.protocol !== 'https:') {
-      throw new Error('DSS_HOST must use HTTPS');
+    if (host.protocol !== 'https:' && host.protocol !== 'http:') {
+      throw new Error('DSS_HOST must use HTTP or HTTPS');
+    }
+    if (host.protocol === 'http:' && !this.config.allowHttp) {
+      throw new Error('DSS_HOST requires HTTPS by default. For a trusted HTTP-only instance, explicitly set DSS_ALLOW_HTTP=true; the API key will be sent without transport encryption');
     }
     if (host.username || host.password || host.search || host.hash) {
       throw new Error('DSS_HOST must not contain credentials, query parameters, or fragments');
@@ -160,6 +100,8 @@ export class DataikuClient {
       : `${normalizedPath}/public/api/`;
 
     this.client = new SecureHttpClient(host, this.config.apiKey);
+    this.agents = new AgentClient(this.client);
+    this.operations = new OperationsClient(this.client);
   }
 
   // Project operations
@@ -178,8 +120,7 @@ export class DataikuClient {
   }
 
   async getProjectFlow(projectKey: string): Promise<any> {
-    const response = await this.client.get(`/projects/${projectKey}/flow/`);
-    return response.data;
+    return this.operations.flow(projectKey);
   }
 
   // Dataset operations
@@ -194,18 +135,11 @@ export class DataikuClient {
   }
 
   async createDataset(projectKey: string, datasetName: string, datasetType: string, params: Record<string, any>): Promise<any> {
-    const data = {
-      name: datasetName,
-      type: datasetType,
-      params,
-    };
-    const response = await this.client.post(`/projects/${projectKey}/datasets/`, data);
-    return response.data;
+    return provisionDataset(this.operations, {project_key: projectKey, dataset_name: datasetName, dataset_type: datasetType, params});
   }
 
   async updateDataset(projectKey: string, datasetName: string, updates: Record<string, any>): Promise<any> {
-    const response = await this.client.put(`/projects/${projectKey}/datasets/${datasetName}`, updates);
-    return response.data;
+    return this.operations.updateObject('datasets', { project_key: projectKey, dataset_name: datasetName, patch: updates });
   }
 
   async deleteDataset(projectKey: string, datasetName: string, dropData: boolean = false): Promise<any> {
@@ -249,12 +183,7 @@ export class DataikuClient {
   }
 
   async getDatasetSample(projectKey: string, datasetName: string, rows: number = 100, columns?: string[]): Promise<any> {
-    const params: Record<string, any> = { rows };
-    if (columns) {
-      params.columns = columns.join(',');
-    }
-    const response = await this.client.get(`/projects/${projectKey}/datasets/${datasetName}/sample`, { params });
-    return response.data;
+    return this.operations.sample({ project_key: projectKey, dataset_name: datasetName, rows, columns });
   }
 
   // Recipe operations
@@ -269,7 +198,7 @@ export class DataikuClient {
   }
 
   async getRecipeInfo(projectKey: string, recipeName: string): Promise<any> {
-    const response = await this.client.get(`/projects/${projectKey}/recipes/${recipeName}/info`);
+    const response = await this.client.get(`/projects/${projectKey}/recipes/${recipeName}`);
     return response.data;
   }
 
@@ -306,8 +235,7 @@ export class DataikuClient {
   }
 
   async updateRecipe(projectKey: string, recipeName: string, updates: Record<string, any>): Promise<any> {
-    const response = await this.client.put(`/projects/${projectKey}/recipes/${recipeName}`, updates);
-    return response.data;
+    return this.operations.updateObject('recipes', { project_key: projectKey, recipe_name: recipeName, patch: updates });
   }
 
   async deleteRecipe(projectKey: string, recipeName: string): Promise<any> {
@@ -356,8 +284,7 @@ export class DataikuClient {
   }
 
   async updateScenario(projectKey: string, scenarioId: string, updates: Record<string, any>): Promise<any> {
-    const response = await this.client.put(`/projects/${projectKey}/scenarios/${scenarioId}`, updates);
-    return response.data;
+    return this.operations.updateObject('scenarios', { project_key: projectKey, scenario_id: scenarioId, patch: updates });
   }
 
   async deleteScenario(projectKey: string, scenarioId: string): Promise<any> {
@@ -461,10 +388,8 @@ export class DataikuClient {
     return response.data;
   }
 
-  async exportProjectConfig(projectKey: string, format: 'json' | 'yaml' = 'json'): Promise<any> {
-    const params = { format };
-    const response = await this.client.get(`/projects/${projectKey}/export`, { params });
-    return response.data;
+  async exportProjectConfig(projectKey: string, _format?: 'json' | 'yaml'): Promise<any> {
+    return this.operations.exportProject({ project_key: projectKey, include_manifest: true });
   }
 
   async batchUpdateObjects(projectKey: string, objectType: string, pattern: string, updates: Record<string, any>): Promise<any> {
@@ -499,4 +424,3 @@ export class DataikuClient {
     return Array.isArray(response.data) ? response.data : [response.data];
   }
 }
-

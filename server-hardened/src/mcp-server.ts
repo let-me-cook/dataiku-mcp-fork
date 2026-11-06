@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { operationTools, isOperation, callOperation, textResult } from './operations-tools.js';
+import { errorDetails } from './http-client.js';
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -8,6 +10,8 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { DataikuClient } from './dataiku-client.js';
+import { agentTools, callAgentTool, isAgentTool } from './agent-tools.js';
+import { usageRules, usageRulesTool, withUsageRules } from './usage-rules.js';
 
 /**
  * MCP Server for Dataiku DSS integration
@@ -23,6 +27,7 @@ export class DataikuMcpServer {
         version: '1.0.0',
       },
       {
+        instructions: usageRules,
         capabilities: {
           tools: {},
         },
@@ -37,7 +42,9 @@ export class DataikuMcpServer {
     // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
-        tools: [
+        tools: [...operationTools, ...[
+          usageRulesTool,
+          ...agentTools,
           // Recipe Management Tools
           {
             name: 'create_recipe',
@@ -980,13 +987,23 @@ export class DataikuMcpServer {
               required: ['source_project_key', 'target_project_key'],
             },
           },
-        ] as Tool[],
+        ].filter(tool => !isOperation(tool.name))].filter((tool, index, all) => all.findIndex(other => other.name === tool.name) === index).map(tool => withUsageRules(tool as Tool)),
       };
     });
 
     // Handle tool calls
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
+
+      if (name === 'get_usage_rules') {
+        return { content: [{ type: 'text', text: usageRules }] };
+      }
+
+      if (isOperation(name)) return callOperation(this.client.operations, name, args);
+      if (isAgentTool(name)) {
+        const response = await callAgentTool(this.client.agents, name, args);
+        return textResult(this.client.operations, response.content.length === 1 && response.content[0].type === 'text' ? JSON.parse(response.content[0].text) : response.content, Boolean(response.isError));
+      }
 
       try {
         if (!args) {
@@ -1284,24 +1301,9 @@ export class DataikuMcpServer {
             throw new Error(`Unknown tool: ${name}`);
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
+        return textResult(this.client.operations, result);
       } catch (error) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+        return textResult(this.client.operations, {error: errorDetails(error)}, true);
       }
     });
   }

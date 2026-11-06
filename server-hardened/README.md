@@ -2,6 +2,10 @@
 
 This directory is an auditable local fork. Read [SECURITY.md](SECURITY.md) for the applied controls and [UPSTREAM.md](UPSTREAM.md) for source provenance.
 
+For this hardened build, follow the repository [quick start](../README.md#quick-start): run `make setup` from the repository root, fill in the root `.env`, then run `make run`. It requires Node.js 22+ and defaults to trusted HTTPS. HTTP-only instances require explicit `DSS_ALLOW_HTTP=true`; `DSS_INSECURE_TLS=true` is rejected.
+
+This build also adds 19 [agent-management tools for DSS 14.7.1](AGENTS-API.md), beyond the upstream catalog below. Run `make test` from the repository root for offline API contract tests and MCP discovery verification.
+
 > The remainder of this document is the upstream README and may describe the original npm package rather than this hardened build.
 # Dataiku DSS MCP Server
 
@@ -134,7 +138,7 @@ claude mcp add dataiku-dss \
 | `cancel_running_jobs` | Cancel running jobs/scenarios | `project_key`, `job_ids` |
 | `batch_update_objects` | Update multiple objects with similar changes | `project_key`, `object_type`, `pattern`, `updates` |
 | `get_project_flow` | Get complete data flow/pipeline structure | `project_key` |
-| `export_project_config` | Export project configuration as JSON/YAML | `project_key`, `format` |
+| `export_project_config` | Export ZIP artifact with optional manifest | `project_key`, `include_manifest` |
 | `duplicate_project_structure` | Copy project structure to new project | `source_project_key`, `target_project_key`, `include_data` |
 
 **Total: 46 Tools**
@@ -210,9 +214,9 @@ mcp-dataiku/
 ## 🔒 Security
 
 - **API Key Protection**: Store API keys in environment variables, never in code
-- **SSL Configuration**: Support for self-signed certificates with `DSS_INSECURE_TLS=true`
+- **TLS Configuration**: Certificate validation is required; insecure TLS mode is rejected.
 - **Permission Validation**: All operations respect DSS user permissions
-- **Error Handling**: Sensitive information is not exposed in error messages
+- **Error Handling**: Known credentials and secret-like fields are redacted from results and structured errors. See [security limits](SECURITY.md).
 
 ## 📈 Monitoring
 
@@ -275,3 +279,15 @@ If you encounter any issues or have questions, please [open an issue](https://gi
 ---
 
 **Ready to enhance your Dataiku workflows with AI assistance!** 🚀
+
+## Pilot operations improvements (DSS 14.7.1)
+
+See [Operations API](OPERATIONS-API.md) for the corrected Flow, sample, recipe, and export tools; typed patches; folders, zones, library, variables, diagnostics, jobs, knowledge banks, and native scenario steps. This is the authoritative reference for these extended schemas and their concurrency limits.
+
+## Intake improvements
+
+See [Intake API](INTAKE-API.md) for database inspection, extraction outcomes, verified library/zone writes, and optional backend adapters for document registration and keyed metadata rows. Backend-dependent operations are explicitly unavailable until configured.
+
+## Provisioning fixes
+
+See [Provisioning API](PROVISIONING-API.md) for corrected dataset creation, managed-folder creation, explicit external PostgreSQL configuration and schema detection/save.
