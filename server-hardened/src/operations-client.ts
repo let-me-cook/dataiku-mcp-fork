@@ -13,11 +13,11 @@ async function locked<T>(key: string, f: ()=>Promise<T>): Promise<T> {
 }
 export type Guard = {dry_run?:boolean;expected_hash?:string;expected_version?:number};
 export function checkRevision(current:any,g:Guard) { const r=revision(current); if(g.expected_hash!==undefined && g.expected_hash!==r.sha256 || g.expected_version!==undefined && g.expected_version!==r.version) throw new Error('Version conflict: inspect current settings before retrying'); return r; }
-export function parseTsv(text:string,complete:boolean):string[][] {
+export function parseTsv(text:string,complete:boolean,maxRows=Infinity):string[][] {
   const rows:string[][]=[]; let row:string[]=[], cell='', quoted=false;
   for(let i=0;i<text.length;i++) {const c=text[i]; if(c==='"') {if(quoted && text[i+1]==='"'){cell+='"';i++;} else if(quoted || cell.length===0) quoted=!quoted; else cell+=c;}
     else if(c==='\t' && !quoted){row.push(cell);cell='';}
-    else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+    else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';if(rows.length>=maxRows)return rows;}
     else cell+=c;
   }
   if(complete && !quoted && (cell.length||row.length)){row.push(cell);rows.push(row);}
@@ -45,7 +45,7 @@ export class OperationsClient {
     const names=schema.map((c:any)=>c.name); const columns=a.columns??names;
     for(const name of [...columns,...(a.filters??[]).map((f:any)=>f.column)]) if(!names.includes(name)) throw new Error('Unknown sample column');
     const raw=await this.http.get(`${path}/data/`,{params:{format:'tsv-excel-noheader',partitions:a.partition},format:'text',maxBytes:a.max_scan_bytes??1024*1024,truncate:true});
-    const parsed=parseTsv(raw.data,!raw.truncated); const result:any[]=[]; let scanned=0,bytes=2, stopped=false;
+    const parsed=parseTsv(raw.data,!raw.truncated,(a.max_scan_rows??10000)+1); const result:any[]=[]; let scanned=0,bytes=2, stopped=false;
     for(const cells of parsed) {
       if(scanned >= (a.max_scan_rows??10000)){stopped=true;break;} scanned++;
       if(cells.length!==names.length) throw new Error('DSS row width does not match schema');

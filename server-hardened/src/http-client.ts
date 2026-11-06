@@ -14,14 +14,18 @@ export function sanitize(value: any, knownSecrets: string[] = [], schemaMode = f
   if (typeof value === 'string') {
     let text = value;
     for (const secret of knownSecrets.filter(Boolean)) text = text.split(secret).join('[REDACTED]');
+    // Quantifiers stay bounded: this runs on large untrusted text, so unbounded ones would backtrack quadratically.
     return text.replace(/dkuaps-[\w-]+/g, '[REDACTED]')
       .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9+/=._-]+/gi, '$1 [REDACTED]')
+      .replace(/(?<![\w.-])((?:[\w.-]{0,64}(?:api[_-]?key|access[_-]?key|passw(?:or)?d|pwd|secret)[\w.-]{0,64}|[\w.-]{0,64}token|[\w.-]{0,64}_pass)["']?\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s,"';}]+)/gi, '$1[REDACTED]')
       .replace(/((?:api[_-]?key|password|secret|access_token)\s*[=:]\s*)["']?[^\s,"';}]+["']?/gi, '$1[REDACTED]');
   }
   if (Array.isArray(value)) return value.map(v => sanitize(v, knownSecrets, schemaMode));
   if (value && typeof value === 'object') {
     const schema = schemaMode || '$schema' in value || '$ref' in value || (typeof value.type === 'string' && ('properties' in value || 'required' in value));
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, !schema && SECRET_FIELD.test(k) && typeof v !== 'number' ? '[REDACTED]' : sanitize(v, knownSecrets, schema || /^(inputSchema|outputSchema|jsonSchema)$/.test(k))]));
+    // DSS stores some connection properties as {name, value} pairs, so the secret name is a sibling of the value.
+    const namedSecret = !schema && typeof value.name === 'string' && SECRET_FIELD.test(value.name);
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, !schema && (SECRET_FIELD.test(k) && typeof v !== 'number' || namedSecret && k === 'value') ? '[REDACTED]' : sanitize(v, knownSecrets, schema || /^(inputSchema|outputSchema|jsonSchema)$/.test(k))]));
   }
   return value;
 }

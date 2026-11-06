@@ -51,7 +51,7 @@ Set these in `.env` or the MCP client environment. Only the exact value `true` t
 | --- | --- | --- |
 | `DSS_INSTANCE_TYPE` | `design` | `automation` refuses every tool that edits a project, while reads and runs of existing assets stay available. Any other value stops the server at startup. |
 | `DSS_ALLOW_DESTRUCTIVE` | off | Allows `clear_dataset`, the delete tools, `batch_update_objects`, `duplicate_project_structure` and approving a Cobuild deletion. |
-| `DSS_ENABLE_COBUILD` | off | Adds the optional Cobuild tools on a design instance. Direct write tools stay the normal path, and each edit by Cobuild still needs `allow_edit_project`. |
+| `DSS_ENABLE_COBUILD` | off | Adds the optional Cobuild tools on a design instance. Direct write tools stay the normal path. `allow_edit_project` opts in to Cobuild edits, and Cobuild can propose a deletion without it, which then needs approval. |
 
 To use more than one DSS instance, add one MCP server entry per instance. The server never stores profiles or switches instances itself.
 

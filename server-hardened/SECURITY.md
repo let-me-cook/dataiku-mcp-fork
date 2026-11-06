@@ -24,17 +24,17 @@ This fork focuses on source, artifact, and dependency hardening. Enterprise depl
 Every tool call passes through one gate in `tool-registry.ts` before any request is sent, and every tool's arguments are validated against its schema. See the [capability list](CAPABILITIES.md).
 
 - `DSS_INSTANCE_TYPE=automation` refuses all non-read tools except an explicit list of run and abort tools, so a new write tool is refused until it is listed. An unknown value stops startup. The value is declared by the operator, not detected from DSS.
-- Destructive tools and approving a Cobuild deletion need `DSS_ALLOW_DESTRUCTIVE=true`.
+- `DSS_ALLOW_DESTRUCTIVE=true` is needed for `clear_dataset`, `delete_recipe`, `delete_dataset`, `delete_scenario`, `delete_agent`, `delete_agent_tool`, `batch_update_objects`, `duplicate_project_structure` and approving a Cobuild deletion. It covers only this list: other writes can still lose data, including `remove_scenario_trigger`, `upload_managed_folder_file` with `overwrite: replace`, `shutdown_agent` with `force`, and any build.
 - Cobuild tools are hidden and refused unless `DSS_ENABLE_COBUILD=true` on a design instance. Cobuild is another agent acting inside DSS, so its edits have no `dry_run` or revision check here; read changed objects back.
 - User, group and plugin tools are read-only and return allow-listed fields. Emails and settings are not returned.
 
-## Python execution on DSS
+## Code execution on DSS
 
-There is no generic remote-code execution tool, but this server can still cause arbitrary Python to run on DSS: `update_recipe` with `run_recipe` or `start_job`, a `PYTHON_AGENT` with `run_agent`, an inline Python agent tool with `run_agent_tool`, and project library files used by those. This is intended for normal recipe work and is not gated. Treat an agent connected to this server as able to run code with the DSS permissions of its key and code environments.
+There is no generic remote-code execution tool, but this server can still cause arbitrary Python or SQL to run on DSS: `create_recipe` or `update_recipe` with `run_recipe` or `start_job`, a `PYTHON_AGENT` with `run_agent`, an inline Python tool from `create_agent_tool` or `update_agent_tool` with `run_agent_tool`, and project library files used by those. This is intended for normal recipe work and is not gated. Treat an agent connected to this server as able to run code with the DSS permissions of its key and code environments.
 
 ## Older upstream tools
 
-The upstream tools now have schemas with bounds, annotations and URL segment encoding. Several call endpoints that were not found in the `dataiku-api-client` 14.7.1 source and may fail on a real instance: `run_recipe`, `build_dataset`, `clear_dataset`, `validate_recipe_syntax`, `test_recipe_dry_run`, `add_scenario_trigger`, `remove_scenario_trigger`, `get_scenario_logs`, `get_scenario_run_history`, `clone_scenario`, `search_project_objects`, `batch_update_objects`, `duplicate_project_structure`, and the project-scoped forms of `get_code_environments` and `get_connections`. Their descriptions say so.
+The upstream tools now have schemas with bounds, annotations and URL segment encoding. `check_dataset_metrics` and `create_scenario` were corrected to the SDK request shape, and their filters now apply client-side, but none of this has run against a live instance. Several call endpoints that were not found in the `dataiku-api-client` 14.7.1 source and may fail on a real instance: `run_recipe`, `build_dataset`, `clear_dataset`, `validate_recipe_syntax`, `test_recipe_dry_run`, `add_scenario_trigger`, `remove_scenario_trigger`, `get_scenario_logs`, `get_scenario_run_history`, `clone_scenario`, `search_project_objects`, `batch_update_objects`, `duplicate_project_structure`, and the project-scoped forms of `get_code_environments` and `get_connections`. Their descriptions say so.
 
 ## Headless-derived tools verification
 

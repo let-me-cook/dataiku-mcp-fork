@@ -164,7 +164,7 @@ export class DataikuClient {
   }
 
   async getDatasetMetrics(projectKey: string, datasetName: string): Promise<DatasetMetrics> {
-    const response = await this.client.get(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/metrics`);
+    const response = await this.client.get(`/projects/${seg(projectKey)}/datasets/${seg(datasetName)}/metrics/last/NP`);
     return response.data;
   }
 
@@ -273,12 +273,7 @@ export class DataikuClient {
   }
 
   async createScenario(projectKey: string, scenario: ScenarioDefinition): Promise<any> {
-    const data = {
-      id: scenario.id || scenario.name.toLowerCase().replace(/\s+/g, '_'),
-      name: scenario.name,
-      type: scenario.type,
-      definition: scenario.definition || {},
-    };
+    const data = { ...(scenario.definition ?? { params: {} }), type: scenario.type, name: scenario.name };
     const response = await this.client.post(`/projects/${seg(projectKey)}/scenarios/`, data);
     return response.data;
   }

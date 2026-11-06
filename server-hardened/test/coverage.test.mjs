@@ -3,13 +3,15 @@ import {test} from 'node:test';
 import {DataikuClient} from '../dist/dataiku-client.js';
 import {callTool,listTools,allTools} from '../dist/tool-registry.js';
 import {readPolicy} from '../dist/tool-policy.js';
+import {sanitize} from '../dist/http-client.js';
 const open={instanceType:'design',allowDestructive:true,cobuild:true};
 const P='https://dss.example/public/api/projects/P';
 const running={baseStatus:{state:'RUNNING'}},done={baseStatus:{state:'DONE'}},failed={baseStatus:{state:'FAILED'}};
 function h(t,replies=[],policy=open){
- const requests=[];
- t.mock.method(globalThis,'fetch',async(url,o)=>{requests.push({url:String(url),method:o.method,body:typeof o.body==='string'&&o.headers['Content-Type']==='application/json'?JSON.parse(o.body):o.body});assert.ok(replies.length,`Unexpected HTTP request: ${url}`);const r=replies.shift();return r instanceof Response?r:new Response(r===null?null:JSON.stringify(r),{status:r===null?204:200});});
- const c=new DataikuClient({host:'https://dss.example',apiKey:'known-super-secret'});t.after(()=>assert.equal(replies.length,0,'Expected request was not made'));
+ const requests=[],unexpected=[];
+ // Record unexpected requests: an assertion thrown here would become a transport error that a tool could absorb.
+ t.mock.method(globalThis,'fetch',async(url,o)=>{requests.push({url:String(url),method:o.method,body:typeof o.body==='string'&&o.headers['Content-Type']==='application/json'?JSON.parse(o.body):o.body});if(!replies.length){unexpected.push(String(url));throw new Error('Unexpected HTTP request');}const r=replies.shift();return r instanceof Response?r:new Response(r===null?null:JSON.stringify(r),{status:r===null?204:200});});
+ const c=new DataikuClient({host:'https://dss.example',apiKey:'known-super-secret'});t.after(()=>{assert.deepEqual(unexpected,[],'Unexpected HTTP request');assert.equal(replies.length,0,'Expected request was not made');});
  return {requests,call:(n,a)=>callTool(c,n,a,policy)};
 }
 const value=r=>{assert.notEqual(r.isError,true,r.content[0].text);return JSON.parse(r.content[0].text);};
@@ -115,9 +117,9 @@ test('abort_job reports partial state when the read-back fails',async t=>{
 
 // T3: dataset profile.
 test('profile summarizes the scan and hides values of secret-like columns',async t=>{
- const x=h(t,[{columns:[{name:'n',type:'int'},{name:'city',type:'string'},{name:'api_key',type:'string'}]},new Response('1\tOslo\tk1\n3\tOslo\t\n\tRome\tk3\n')]);
+ const x=h(t,[{columns:[{name:'n',type:'int'},{name:'city',type:'string'},{name:'api_key',type:'string'}]},new Response('1\tOslo\tk1\n3\tOslo\t\n\tRome\tk3\n'),null]);
  const d=value(await x.call('get_dataset_profile',{project_key:'P',dataset_name:'d',top_values:1}));
- assert.equal(d.rows_scanned,3);assert.equal(d.scan_complete,true);req(x,1,'GET',`${P}/datasets/d/data/?format=tsv-excel-noheader`);
+ assert.equal(d.rows_scanned,3);assert.equal(d.scan_complete,true);const session=new URL(x.requests[1].url).searchParams.get('readSessionId');assert.ok(session);req(x,1,'GET',`${P}/datasets/d/data/?format=tsv-excel-noheader&readSessionId=${session}`);req(x,2,'GET',`${P}/datasets/d/finish-streaming/?readSessionId=${session}`);
  const [n,city,key]=d.columns;
  assert.deepEqual([n.empty_count,n.min,n.max,n.mean],[1,1,3,2]);
  assert.deepEqual(city.top_values,[{value:'Oslo',count:2}]);assert.equal(city.distinct_count,2);assert.equal(city.min,undefined);
@@ -134,13 +136,58 @@ const tree=[{name:'python',children:[{name:'a.py'},{name:'sub',children:[{name:'
 test('library search finds literal text with line numbers and honours the prefix',async t=>{
  const x=h(t,[tree,{data:'import os\nX = 1\n'},{data:'x = (1)\npassword = "hunter2" # X\n'}]);
  const d=value(await x.call('search_project_library',{project_key:'P',query:'x',case_insensitive:true,path_prefix:'python/'}));
- assert.deepEqual(d.matches.map(m=>[m.path,m.line]),[['python/a.py',2],['python/sub/b.py',1],['python/sub/b.py',2]]);assert.doesNotMatch(JSON.stringify(d),/hunter2/);assert.equal(d.complete,true);
+ assert.deepEqual(d.matches.map(m=>[m.path,m.line]),[['python/a.py',2],['python/sub/b.py',1],['python/sub/b.py',2]]);assert.doesNotMatch(JSON.stringify(d),/hunter2/);assert.equal(d.complete,true);assert.deepEqual(d.files_skipped,[]);assert.equal(x.requests.length,3);
  req(x,0,'GET',`${P}/libraries/contents`);req(x,2,'GET',`${P}/libraries/contents/python/sub/b.py`);
 });
 test('library search treats regex characters literally and reports limits and unreadable files',async t=>{
  const x=h(t,[tree,{data:'a.b\naxb\n'},new Response('{}',{status:500})]);
  const d=value(await x.call('search_project_library',{project_key:'P',query:'a.b',max_files:2}));
  assert.deepEqual(d.matches.map(m=>m.line),[1]);assert.deepEqual(d.files_skipped,['python/sub/b.py']);assert.equal(d.complete,false);
+});
+
+test('library search is not complete when a file in scope could not be read',async t=>{
+ const x=h(t,[[{name:'a.py'},{name:'b.py'}],{data:'x'},new Response('{}',{status:500})]);const d=value(await x.call('search_project_library',{project_key:'P',query:'x'}));assert.deepEqual(d.files_skipped,['b.py']);assert.equal(d.complete,false);
+});
+test('profile stops parsing at max_rows, so a huge body cannot exhaust memory',async t=>{
+ const x=h(t,[{columns:[{name:'a',type:'string'}]},new Response('\n'.repeat(10*1024*1024))]);const d=value(await x.call('get_dataset_profile',{project_key:'P',dataset_name:'d',max_rows:1}));assert.equal(d.rows_scanned,1);assert.equal(d.scan_complete,false);assert.equal(x.requests.length,2);
+});
+test('profile fails when DSS reports a streaming error after the body',async t=>{
+ const x=h(t,[{columns:[{name:'a',type:'string'}]},new Response('1\n'),new Response(JSON.stringify({message:'stream broke'}),{status:500})]);assert.match(failure(await x.call('get_dataset_profile',{project_key:'P',dataset_name:'d'})).message,/stream broke/);
+});
+test('profile gives numeric ranges only for numeric schema types',async t=>{
+ const x=h(t,[{columns:[{name:'code',type:'string'},{name:'hex',type:'int'}]},new Response('5\t0x10\n1000\t2\n'),null]);const [code,hex]=value(await x.call('get_dataset_profile',{project_key:'P',dataset_name:'d'})).columns;assert.equal(code.min,undefined);assert.equal(hex.max,16);
+});
+
+// F2 review fixes: filters and request shapes for older tools.
+test('job and scenario filters apply client-side',async t=>{
+ const x=h(t,[[{id:1,baseStatus:{state:'DONE'}},{id:2,baseStatus:{state:'FAILED'}},{id:3,state:'FAILED'}],[{id:'a',active:true,type:'step_based'},{id:'b',active:false,type:'step_based'},{id:'c',active:true,type:'custom_python'}]]);
+ assert.deepEqual(value(await x.call('get_recent_runs',{project_key:'P',status_filter:'FAILED',limit:1})).map(j=>j.id),[2]);
+ assert.deepEqual(value(await x.call('list_scenarios',{project_key:'P',active_only:true,scenario_type:'step_based'})).map(s=>s.id),['a']);
+});
+test('metrics and scenario creation use the SDK request shape',async t=>{
+ const x=h(t,[{metrics:[]},{id:'s'},{id:'s2'}]);
+ value(await x.call('check_dataset_metrics',{project_key:'P',dataset_name:'d'}));req(x,0,'GET',`${P}/datasets/d/metrics/last/NP`);
+ value(await x.call('create_scenario',{project_key:'P',scenario_name:'S',scenario_type:'step_based',definition:{params:{steps:[1]}}}));req(x,1,'POST',`${P}/scenarios/`,{params:{steps:[1]},type:'step_based',name:'S'});
+ value(await x.call('create_scenario',{project_key:'P',scenario_name:'S',scenario_type:'custom_python'}));assert.deepEqual(x.requests[2].body,{params:{},type:'custom_python',name:'S'});
+});
+test('create_recipe enforces the Python limits before any request',async t=>{
+ const x=h(t);const base={project_key:'P',recipe_type:'python',recipe_name:'r',inputs:['i']};
+ assert.match(failure(await x.call('create_recipe',{...base,outputs:[{name:'a'},{name:'b'}]})).message,/exactly one output/);
+ assert.match(failure(await x.call('create_recipe',{...base,outputs:[{name:'a'}],code:'x\n'.repeat(1000)})).message,/1,000 lines/);
+});
+test('redaction covers name/value properties and common secret assignments',async t=>{
+ const x=h(t,[[{params:{properties:[{name:'ssl.key.password',value:'LEAK1'},{name:'host',value:'keepme'}]}}],new Response('token = "LEAK2"\nsecret_key = LEAK3\naws_secret_access_key=LEAK4\ndb_pass=LEAK5\npassword="LEAK6 x y"\nmax_tokens=5\ntokenizer = load()\n')]);
+ const conn=JSON.stringify(value(await x.call('get_connections',{})));assert.doesNotMatch(conn,/LEAK/);assert.match(conn,/keepme/);
+ const log=value(await x.call('get_job_log_tail',{project_key:'P',job_id:'j'})).text;assert.doesNotMatch(log,/LEAK|x y"/);assert.match(log,/max_tokens=5/);assert.match(log,/tokenizer = load/);
+});
+test('redaction stays fast on long unbroken text',()=>{
+ for(const text of ['x'.repeat(6*1024*1024),'a.b-'.repeat(1024*1024),'token'.repeat(1024*1024)]){const start=Date.now();sanitize(text);assert.ok(Date.now()-start<5000,`took ${Date.now()-start} ms`);}
+});
+test('a known key crossing the clip point is not partly returned',async t=>{
+ const secret='known-super-secret';const x=h(t,[[{name:'a.py'}],{data:'x'.repeat(290)+secret}]);const d=value(await x.call('search_project_library',{project_key:'P',query:'x'}));assert.doesNotMatch(d.matches[0].text,/known-super/);
+});
+test('large model details over the normal limit are returned, not refused',async t=>{
+ const big={blob:'x'.repeat(6*1024*1024)};const x=h(t,[big]);const d=value(await x.call('get_ml_model_details',{project_key:'P',analysis_id:'a',mltask_id:'m',model_id:'i'}));assert.equal(d.inline_truncated,true);assert.ok(d.artifact.artifact_id);
 });
 
 // T5, T6 and T7: read-only families.

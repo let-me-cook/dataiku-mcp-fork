@@ -143,4 +143,4 @@ Every tool this server can expose, checked against the code by `test/docs.test.m
 
 - No tool creates or changes users, groups, plugins, connections or code environments.
 - No tool stores DSS credentials or switches between instances. Use one MCP server entry per instance.
-- No tool accepts arbitrary SQL or an arbitrary local file path.
+- No tool runs ad hoc SQL directly or accepts an arbitrary local file path. SQL recipe code does run when that recipe is built.
