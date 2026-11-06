@@ -80,11 +80,17 @@ test('removed tools no longer exist',async t=>{
 
 // Older tools rewritten to the SDK request shape.
 test('create_recipe sends the SDK prototype and payload',async t=>{
- const x=h(t,[{name:'r'},{name:'j'}]);
- value(await x.call('create_recipe',{project_key:'P',recipe_type:'python',recipe_name:'r',inputs:['i'],outputs:[{name:'o'}],code:'print(1)'}));
- req(x,0,'POST',`${P}/recipes/`,{recipePrototype:{projectKey:'P',type:'python',name:'r',inputs:{main:{items:[{ref:'i'}]}},outputs:{main:{items:[{ref:'o',appendMode:false}]}}},creationSettings:{payload:'print(1)'}});
- value(await x.call('create_recipe',{project_key:'P',recipe_type:'join',recipe_name:'j',inputs:['i'],outputs:[{name:'o'}]}));assert.deepEqual(x.requests[1].body.creationSettings,{});
+ const x=h(t,[{name:'r'},{recipe:{},payload:'print(1)'},{name:'j'}]);
+ assert.equal(value(await x.call('create_recipe',{project_key:'P',recipe_type:'python',recipe_name:'r',inputs:['i'],outputs:[{name:'o'}],code:'print(1)'})).code_verified,true);req(x,1,'GET',`${P}/recipes/r`);
+ req(x,0,'POST',`${P}/recipes/`,{recipePrototype:{projectKey:'P',type:'python',name:'r',inputs:{main:{items:[{ref:'i'}]}},outputs:{main:{items:[{ref:'o',appendMode:false}]}}},creationSettings:{script:'print(1)'}});
+ value(await x.call('create_recipe',{project_key:'P',recipe_type:'join',recipe_name:'j',inputs:['i'],outputs:[{name:'o'}]}));assert.deepEqual(x.requests[2].body.creationSettings,{});
  assert.match(failure(await x.call('create_recipe',{project_key:'P',recipe_type:'join',recipe_name:'j',inputs:['i'],outputs:[{name:'o',new:true}]})).message,/Invalid arguments/);
+});
+test('create_recipe reports when the saved code differs',async t=>{
+ const x=h(t,[{name:'r'},{recipe:{},payload:null}]);const r=await x.call('create_recipe',{project_key:'P',recipe_type:'python',recipe_name:'r',inputs:[],outputs:[{name:'o'}],code:'x'});assert.equal(r.isError,true);assert.equal(JSON.parse(r.content[0].text).code_verified,false);
+});
+test('a failed job is a successful read with its failure details',async t=>{
+ const x=h(t,[{baseStatus:{state:'FAILED'},error:{message:'boom'}}]);const d=value(await x.call('get_job_details',{project_key:'P',job_id:'j'}));assert.deepEqual([d.success,d.terminal,d.failure.message,d.error],[false,true,'boom',undefined]);
 });
 test('clear_dataset and run history use the SDK endpoints',async t=>{
  const x=h(t,[null,[{id:'run'}]]);

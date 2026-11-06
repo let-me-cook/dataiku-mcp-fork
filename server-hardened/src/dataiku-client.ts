@@ -194,7 +194,7 @@ export class DataikuClient {
         inputs: { main: { items: recipe.inputs.map(ref => ({ ref })) } },
         outputs: { main: { items: recipe.outputs.map(output => ({ ref: output.name, appendMode: false })) } },
       },
-      creationSettings: recipe.code === undefined ? {} : { payload: recipe.code },
+      creationSettings: recipe.code === undefined ? {} : { script: recipe.code },
     };
     const response = await this.client.post(`/projects/${seg(projectKey)}/recipes/`, data);
     return response.data;

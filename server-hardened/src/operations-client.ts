@@ -163,7 +163,7 @@ export class OperationsClient {
     } catch(e) {return {...result,persistence_verified:false,error:{type:'VerificationFailed',message:'Zone PUT completed but read-back failed; inspect before retrying'}};}
   }
   async variables(a:any) {return this.patch(`${base(a.project_key)}/variables/`,{[a.scope]:a.patch},a);}
-  async job(a:any) {const d=(await this.http.get(`${base(a.project_key)}/jobs/${seg(a.job_id)}/`)).data;const state=d.baseStatus?.state??d.state;return {...d,terminal:['DONE','FAILED','ABORTED'].includes(state),state,success:state==='DONE'?true:state==='FAILED'||state==='ABORTED'?false:null};}
+  async job(a:any) {const d=(await this.http.get(`${base(a.project_key)}/jobs/${seg(a.job_id)}/`)).data;const state=d.baseStatus?.state??d.state;const {error:failure,...job}=d;return {...job,...(failure===undefined?{}:{failure}),terminal:['DONE','FAILED','ABORTED'].includes(state),state,success:state==='DONE'?true:state==='FAILED'||state==='ABORTED'?false:null};}
   async jobLog(a:any){const r=await this.http.get(`${base(a.project_key)}/jobs/${seg(a.job_id)}/log`,{params:{activity:a.activity},format:'text',maxBytes:a.max_bytes??65536,truncate:true});return {text:this.http.clean(r.data),bytes:r.bytes,truncated:r.truncated,segment:'beginning',operation_id:r.operationId};}
   async knowledge(a:any) {
     const settings=(await this.http.get(`${base(a.project_key)}/knowledge-banks/${seg(a.knowledge_bank_id)}`)).data;
